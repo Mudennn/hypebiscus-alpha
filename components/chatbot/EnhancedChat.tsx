@@ -21,6 +21,7 @@ export default function EnhancedChat() {
   const [currentIntent, setCurrentIntent] = useState<DetectedIntent | null>(null)
   const [panelData, setPanelData] = useState<Record<string, any> | undefined>()
   const [panelLoading, setPanelLoading] = useState(false)
+  const [showPanel, setShowPanel] = useState(false) // Control when to show panel
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to latest message
@@ -29,21 +30,19 @@ export default function EnhancedChat() {
   }, [messages])
 
   /**
-   * Handle input change - detect intent in real-time
+   * Handle input change - detect intent for display only
+   * DO NOT fetch data while typing - only after Enter is pressed
    */
   const handleInputChange = (value: string) => {
     setInput(value)
 
+    // Only detect intent for showing the intent indicator
+    // Don't fetch any data until the message is actually sent
     if (value.length > 5) {
       const intent = detectIntent(value)
       setCurrentIntent(intent)
-
-      // Fetch data based on intent
-      if (intent.type !== 'general' && (intent.tokens || intent.wallets)) {
-        fetchPanelData(intent)
-      } else {
-        setPanelData(undefined)
-      }
+    } else {
+      setCurrentIntent(null)
     }
   }
 
@@ -64,6 +63,12 @@ export default function EnhancedChat() {
         })
 
         const response = await fetch(url)
+        if (!response.ok) {
+          console.error(`API error: ${response.status}`)
+          setPanelData(undefined)
+          return
+        }
+
         const data = await response.json()
         setPanelData(data)
       }
@@ -81,6 +86,10 @@ export default function EnhancedChat() {
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
+    // Save current panel data and intent before clearing input
+    const savedPanelData = panelData
+    const savedIntent = currentIntent
+
     // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -90,42 +99,61 @@ export default function EnhancedChat() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    setInput('')
     setLoading(true)
+    setShowPanel(false) // Hide panel initially
+    setPanelLoading(true) // Keep panel in loading state
+
+    // Fetch panel data based on the current intent
+    if (savedIntent && savedIntent.type !== 'general' && (savedIntent.tokens || savedIntent.wallets)) {
+      fetchPanelData(savedIntent)
+    }
 
     try {
       // Generate intent context for AI
-      const intentContext = currentIntent ? generateIntentContext(currentIntent) : ''
+      const intentContext = savedIntent ? generateIntentContext(savedIntent) : ''
 
-      // Call Claude API
+      // Call Claude API with Jupiter data context
       const response = await fetch('/api/claude/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: input,
+          message: userMessage.content,
           sessionId: 'default',
           userId: 'user_1',
           contextData: {
-            intent: currentIntent,
+            intent: savedIntent,
             intentContext,
+            jupiterData: savedPanelData, // Include fetched Jupiter data for Claude context
           },
         }),
       })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
 
       const data = await response.json()
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || 'Unable to generate response',
+        content: data.message || data.response || 'Unable to generate response',
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, assistantMessage])
-      setInput('')
-      setCurrentIntent(null)
-      setPanelData(undefined)
+
+      // After chat response is ready, show the panel data
+      // Add a small delay to make it feel more natural
+      setTimeout(() => {
+        setCurrentIntent(savedIntent)
+        setShowPanel(true) // Now show the panel
+        setPanelLoading(false)
+      }, 500)
+
     } catch (error) {
       console.error('Error sending message:', error)
 
@@ -137,6 +165,10 @@ export default function EnhancedChat() {
       }
 
       setMessages((prev) => [...prev, errorMessage])
+      setPanelData(undefined)
+      setCurrentIntent(null)
+      setShowPanel(false)
+      setPanelLoading(false)
     } finally {
       setLoading(false)
     }
@@ -151,9 +183,9 @@ export default function EnhancedChat() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full max-h-full">
       {/* Chat Interface - Left Side (Full width or ~60% on desktop) */}
-      <div className={`flex flex-col bg-white rounded-lg border overflow-hidden ${messages.length > 0 ? 'lg:col-span-2' : 'lg:col-span-4'}`}>
+      <div className={`flex flex-col bg-white rounded-lg border overflow-hidden min-h-0 ${messages.length > 0 ? 'lg:col-span-2' : 'lg:col-span-4'}`}>
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 ? (
@@ -199,7 +231,7 @@ export default function EnhancedChat() {
                         : 'bg-neutral-100 text-neutral-900 rounded-bl-none'
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     <p className="text-xs mt-1 opacity-70">
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -209,6 +241,16 @@ export default function EnhancedChat() {
                   </div>
                 </div>
               ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-neutral-100 text-neutral-900 rounded-bl-none">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <p className="text-sm text-neutral-500">Thinking...</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </>
           )}
@@ -259,14 +301,14 @@ export default function EnhancedChat() {
       {/* Data Panel - Right Side (2/4) - Only show after first message */}
       {messages.length > 0 && (
         <div className="hidden lg:col-span-2 lg:flex flex-col bg-white rounded-lg border overflow-hidden">
-          <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
+          <DataPanel intent={showPanel ? currentIntent : null} data={showPanel ? panelData : undefined} loading={panelLoading} />
         </div>
       )}
 
       {/* Mobile Data Panel - Only show after first message */}
       {messages.length > 0 && (
         <div className="lg:hidden col-span-1 flex flex-col bg-white rounded-lg border overflow-hidden">
-          <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
+          <DataPanel intent={showPanel ? currentIntent : null} data={showPanel ? panelData : undefined} loading={panelLoading} />
         </div>
       )}
     </div>

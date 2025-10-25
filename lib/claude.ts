@@ -130,15 +130,23 @@ Provide a 3-4 sentence insight highlighting:
     try {
       let systemPrompt = `You are an expert Solana and DeFi analyst AI assistant. You help users understand on-chain data, token health, wallet activity, and provide insights for better investment decisions.
 
-You have access to real-time data including:
+You have access to real-time data from Jupiter API including:
+- Real-time token prices from verified Solana tokens
+- Market data and liquidity information
 - Portfolio information
 - Token health metrics
 - Wallet activity and smart money moves
-- Market data and liquidity information
+
+IMPORTANT: When token price data is provided in the context, ALWAYS use it to answer price-related questions. The data is fetched in real-time from Jupiter API and is accurate and current.
 
 Always be concise, accurate, and provide actionable insights.`;
 
-      if (contextData) {
+      if (contextData && contextData.tokens) {
+        systemPrompt += `\n\n=== REAL-TIME TOKEN DATA FROM JUPITER ===\n`;
+        systemPrompt += `The following token data is LIVE and CURRENT from Jupiter API:\n`;
+        systemPrompt += JSON.stringify(contextData.tokens, null, 2);
+        systemPrompt += `\n\nWhen answering questions about these tokens, USE THIS DATA directly. Provide the exact prices shown. Do not say you cannot provide real-time prices.`;
+      } else if (contextData) {
         systemPrompt += `\n\nContext Data Available:\n${JSON.stringify(contextData, null, 2)}`;
       }
 

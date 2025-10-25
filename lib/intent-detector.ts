@@ -89,32 +89,37 @@ const INTENT_KEYWORDS = {
 function extractTokens(query: string): string[] {
   const tokens: string[] = []
 
-  // Common token symbols
-  const commonTokens = [
-    'SOL',
-    'USDC',
-    'USDT',
-    'BONK',
-    'PUMP',
-    'JTO',
-    'ORCA',
-    'RAYDIUM',
-    'AAVE',
-    'COMPOUND',
-    'SHIB',
-  ]
-
-  for (const token of commonTokens) {
-    if (query.toUpperCase().includes(token)) {
-      tokens.push(token)
-    }
-  }
-
-  // Extract Solana addresses (base58, 44 chars)
-  const addressRegex = /[1-9A-HJ-NP-Z]{44}/g
+  // Extract Solana addresses (base58, 32-44 chars)
+  const addressRegex = /[1-9A-HJ-NP-Z]{32,44}/g
   const addresses = query.match(addressRegex)
   if (addresses) {
     tokens.push(...addresses)
+  }
+
+  // Extract potential token symbols (2-10 uppercase letters)
+  // Look for patterns like "price of CBBTC", "buy ZBTC", "what is WIF"
+  const symbolRegex = /\b([A-Z]{2,10})\b/g
+  const symbols = query.toUpperCase().match(symbolRegex)
+
+  if (symbols) {
+    // Filter out common English words that might be all caps
+    const excludeWords = ['USD', 'THE', 'AND', 'FOR', 'NOT', 'BUT', 'ARE', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO', 'BOY', 'DID', 'ITS', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE']
+
+    for (const symbol of symbols) {
+      // Skip common words and very short symbols
+      if (!excludeWords.includes(symbol) && symbol.length >= 2) {
+        tokens.push(symbol)
+      }
+    }
+  }
+
+  // Look for token mentions in lowercase with context
+  // Patterns like "cbbtc token", "zbtc price", "bonk coin"
+  const tokenContextRegex = /\b([a-z]{2,10})(?:\s+(?:token|coin|price|chart|data))/gi
+  const contextMatches = query.matchAll(tokenContextRegex)
+
+  for (const match of contextMatches) {
+    tokens.push(match[1].toUpperCase())
   }
 
   return [...new Set(tokens)] // Remove duplicates
@@ -140,8 +145,6 @@ function extractWallets(query: string): string[] {
  * Detect comparison intent
  */
 function detectComparison(query: string): { from: string; to: string } | undefined {
-  const lowerQuery = query.toLowerCase()
-
   // Pattern: "X vs Y", "X versus Y", "compare X and Y"
   const vsMatch = query.match(/([A-Z\w]+)\s+(?:vs|versus)\s+([A-Z\w]+)/i)
   if (vsMatch) {
@@ -260,8 +263,8 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
       if (intent.tokens && intent.tokens.length > 0) {
         for (const token of intent.tokens) {
           fetches.push({
-            endpoint: '/api/zerion/token',
-            params: { address: token },
+            endpoint: '/api/jupiter/token',
+            params: { symbol: token },
           })
         }
       }
@@ -270,31 +273,25 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
     case 'wallet':
       if (intent.wallets && intent.wallets.length > 0) {
         for (const wallet of intent.wallets) {
-          fetches.push(
-            {
-              endpoint: '/api/zerion/portfolio',
-              params: { address: wallet },
-            },
-            {
-              endpoint: '/api/zerion/wallet-flows',
-              params: { address: wallet, type: 'both' },
-            }
-          )
+          fetches.push({
+            endpoint: '/api/solana/wallet',
+            params: { address: wallet },
+          })
         }
       }
       break
 
     case 'comparison':
       if (intent.comparison) {
-        // Fetch data for both tokens
+        // Fetch data for both tokens using Jupiter
         fetches.push(
           {
-            endpoint: '/api/zerion/token',
-            params: { address: intent.comparison.from },
+            endpoint: '/api/jupiter/token',
+            params: { symbol: intent.comparison.from },
           },
           {
-            endpoint: '/api/zerion/token',
-            params: { address: intent.comparison.to },
+            endpoint: '/api/jupiter/token',
+            params: { symbol: intent.comparison.to },
           }
         )
       }

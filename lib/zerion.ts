@@ -89,6 +89,33 @@ const getAuthHeader = (): string => {
 
 export const zerionClient = {
   /**
+   * Fetch token market data with price (using market endpoint)
+   */
+  async getTokenMarketData(tokenSymbol: string): Promise<any> {
+    try {
+      const response = await fetch(
+        `${ZERION_API_BASE}/market/tokens/${tokenSymbol.toLowerCase()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${ZERION_API_KEY}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Zerion API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching token market data:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Fetch wallet portfolio data
    */
   async getPortfolio(address: string): Promise<ZerionPortfolioResponse> {
@@ -206,12 +233,12 @@ export const zerionClient = {
   },
 
   /**
-   * Search for tokens by query
+   * Search for tokens by query (using fungibles endpoint)
    */
   async searchTokens(query: string): Promise<ZerionAssetData[]> {
     try {
       const response = await fetch(
-        `${ZERION_API_BASE}/assets?filter=search&q=${encodeURIComponent(
+        `${ZERION_API_BASE}/fungibles/?filter[search_query]=${encodeURIComponent(
           query
         )}&currency=usd`,
         {

@@ -24,13 +24,14 @@ export default function Dashboard({ userId = 'demo-user' }: DashboardProps) {
       }
     >
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      <SidebarInset
+        className="flex flex-col overflow-hidden"
+        style={{ height: 'calc(100vh - 1rem)' }}
+      >
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+        <div className="flex-1 p-4 md:p-6 min-h-0 overflow-hidden">
           {/* Enhanced Chat with Data Panel */}
-          <div className="flex-1 overflow-auto lg:overflow-hidden">
-            <EnhancedChat />
-          </div>
+          <EnhancedChat />
         </div>
       </SidebarInset>
     </SidebarProvider>
