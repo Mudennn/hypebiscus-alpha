@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+llms-full.txt
+PHASE1_SUMMARY.md
+PHASE1_COMPLETE.md
+Solana-Alpha-AI-MVP.md
+TODO.md
+API_USAGE.md
+CLAUDE.md
+QUICK_START.md
