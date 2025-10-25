@@ -27,18 +27,8 @@ export default function Dashboard({ userId = 'demo-user' }: DashboardProps) {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-          {/* Header Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl">Solana Alpha AI</CardTitle>
-              <CardDescription>
-                Chat with AI to analyze tokens, wallets, and market trends. Real-time data visualization on the right.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
           {/* Enhanced Chat with Data Panel */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-auto lg:overflow-hidden">
             <EnhancedChat />
           </div>
         </div>

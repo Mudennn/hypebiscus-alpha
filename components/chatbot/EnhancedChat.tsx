@@ -151,9 +151,9 @@ export default function EnhancedChat() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-200px)]">
-      {/* Chat Interface - Left Side (2/3) */}
-      <div className="lg:col-span-2 flex flex-col bg-white rounded-lg border">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
+      {/* Chat Interface - Left Side (Full width or ~60% on desktop) */}
+      <div className={`flex flex-col bg-white rounded-lg border overflow-hidden ${messages.length > 0 ? 'lg:col-span-2' : 'lg:col-span-4'}`}>
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 ? (
@@ -245,8 +245,8 @@ export default function EnhancedChat() {
             </Button>
           </div>
 
-          {/* Intent Indicator */}
-          {currentIntent && currentIntent.type !== 'general' && (
+          {/* Intent Indicator - Only show when typing before sending */}
+          {messages.length === 0 && currentIntent && currentIntent.type !== 'general' && (
             <div className="text-xs text-neutral-600 bg-neutral-50 p-2 rounded">
               <span className="font-semibold">Intent detected:</span> {currentIntent.type}
               {currentIntent.tokens && ` • ${currentIntent.tokens.join(', ')}`}
@@ -256,17 +256,17 @@ export default function EnhancedChat() {
         </div>
       </div>
 
-      {/* Data Panel - Right Side (1/3) */}
-      <div className="hidden lg:flex flex-col bg-white rounded-lg border overflow-hidden">
-        <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
-      </div>
+      {/* Data Panel - Right Side (2/4) - Only show after first message */}
+      {messages.length > 0 && (
+        <div className="hidden lg:col-span-2 lg:flex flex-col bg-white rounded-lg border overflow-hidden">
+          <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
+        </div>
+      )}
 
-      {/* Mobile Data Panel */}
-      {currentIntent && currentIntent.type !== 'general' && (
-        <div className="lg:hidden mt-4">
-          <Card className="overflow-hidden">
-            <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
-          </Card>
+      {/* Mobile Data Panel - Only show after first message */}
+      {messages.length > 0 && (
+        <div className="lg:hidden col-span-1 flex flex-col bg-white rounded-lg border overflow-hidden">
+          <DataPanel intent={currentIntent} data={panelData} loading={panelLoading} />
         </div>
       )}
     </div>
