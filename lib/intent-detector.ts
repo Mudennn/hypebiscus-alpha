@@ -96,22 +96,34 @@ function extractTokens(query: string): string[] {
     tokens.push(...addresses)
   }
 
-  // Extract potential token symbols (2-10 uppercase letters)
-  // Look for patterns like "price of CBBTC", "buy ZBTC", "what is WIF"
-  const symbolRegex = /\b([A-Z]{2,10})\b/g
-  const symbols = query.toUpperCase().match(symbolRegex)
+  // Extract potential token symbols ONLY if they appear with context
+  // Look for patterns like "token SOL", "price of BTC", "SOL coin"
+  const tokenContextPatterns = [
+    /(?:price|chart|buy|sell|swap|trade)\s+(?:of\s+)?([A-Z]{2,10})\b/gi,
+    /\b([A-Z]{2,10})\s+(?:token|coin|price|chart)/gi,
+    /(?:token|coin)\s+([A-Z]{2,10})\b/gi,
+  ]
 
-  if (symbols) {
-    // Filter out common English words that might be all caps
-    const excludeWords = ['USD', 'THE', 'AND', 'FOR', 'NOT', 'BUT', 'ARE', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO', 'BOY', 'DID', 'ITS', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE']
-
-    for (const symbol of symbols) {
-      // Skip common words and very short symbols
-      if (!excludeWords.includes(symbol) && symbol.length >= 2) {
-        tokens.push(symbol)
+  for (const pattern of tokenContextPatterns) {
+    const matches = query.matchAll(pattern)
+    for (const match of matches) {
+      if (match[1]) {
+        tokens.push(match[1].toUpperCase())
       }
     }
   }
+
+  // Common English words to exclude (expanded list)
+  const excludeWords = [
+    'THE', 'AND', 'FOR', 'NOT', 'BUT', 'ARE', 'YOU', 'ALL', 'CAN', 'HER',
+    'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW',
+    'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO', 'BOY', 'DID',
+    'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'WHY', 'INTO', 'EXPLAIN',
+    'SHOW', 'TELL', 'WHAT', 'WHEN', 'WHERE', 'WHICH', 'WHILE', 'WITH'
+  ]
+
+  // Filter out excluded words
+  const filteredTokens = tokens.filter(token => !excludeWords.includes(token.toUpperCase()))
 
   // Look for token mentions in lowercase with context
   // Patterns like "cbbtc token", "zbtc price", "bonk coin"
@@ -119,10 +131,10 @@ function extractTokens(query: string): string[] {
   const contextMatches = query.matchAll(tokenContextRegex)
 
   for (const match of contextMatches) {
-    tokens.push(match[1].toUpperCase())
+    filteredTokens.push(match[1].toUpperCase())
   }
 
-  return [...new Set(tokens)] // Remove duplicates
+  return [...new Set(filteredTokens)] // Remove duplicates
 }
 
 /**

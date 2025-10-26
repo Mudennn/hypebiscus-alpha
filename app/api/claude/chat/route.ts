@@ -33,18 +33,37 @@ async function enrichContextWithTokenData(
       addresses.forEach(addr => tokensToSearch.add(addr));
     }
 
-    // Extract uppercase token symbols (2-10 letters)
-    const symbolRegex = /\b([A-Z]{2,10})\b/g;
-    const symbols = message.match(symbolRegex);
-    if (symbols) {
-      // Filter out common English words
-      const excludeWords = ['USD', 'THE', 'AND', 'FOR', 'NOT', 'BUT', 'ARE', 'YOU', 'ALL', 'CAN', 'API'];
-      symbols.forEach(symbol => {
-        if (!excludeWords.includes(symbol) && symbol.length >= 2) {
-          tokensToSearch.add(symbol);
-        }
-      });
+    // Extract token symbols using context-aware patterns
+    // Only match uppercase words that appear with token-related context
+    const tokenContextPatterns = [
+      /(?:price|chart|buy|sell|swap|trade)\s+(?:of\s+)?([A-Z]{2,10})\b/gi,
+      /\b([A-Z]{2,10})\s+(?:token|coin|price|chart)/gi,
+      /(?:token|coin)\s+([A-Z]{2,10})\b/gi,
+    ];
+
+    for (const pattern of tokenContextPatterns) {
+      const matches = message.matchAll(pattern);
+      for (const match of matches) {
+        tokensToSearch.add(match[1].toUpperCase());
+      }
     }
+
+    // Filter out common English words that might still slip through
+    const excludeWords = [
+      'USD', 'THE', 'AND', 'FOR', 'NOT', 'BUT', 'ARE', 'YOU', 'ALL', 'CAN', 'API',
+      'GET', 'SET', 'HAS', 'WAS', 'ITS', 'OUR', 'OUT', 'DAY', 'MAY', 'NEW', 'NOW',
+      'OLD', 'SEE', 'TWO', 'WHO', 'BOY', 'DID', 'CAR', 'EAT', 'FAR', 'FUN', 'GOT',
+      'HIM', 'HIS', 'HOW', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'WHY', 'INTO',
+      'EXPLAIN', 'SHOW', 'TELL', 'WHAT', 'WHEN', 'WHERE', 'WHICH', 'WHILE', 'WITH'
+    ];
+
+    const filteredTokens = Array.from(tokensToSearch).filter(
+      token => !excludeWords.includes(token.toUpperCase())
+    );
+
+    // Clear and re-populate with filtered tokens
+    tokensToSearch.clear();
+    filteredTokens.forEach(token => tokensToSearch.add(token));
 
     // Extract lowercase token mentions with context (e.g., "cbbtc token", "wif price")
     const tokenContextRegex = /\b([a-z]{2,10})(?:\s+(?:token|coin|price|chart|data|address))/gi;

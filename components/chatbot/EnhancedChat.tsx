@@ -50,6 +50,12 @@ export default function EnhancedChat() {
    * Fetch data for the right panel based on intent
    */
   const fetchPanelData = async (intent: DetectedIntent) => {
+    // Don't fetch if it's a general query
+    if (intent.type === 'general' || (!intent.tokens && !intent.wallets)) {
+      setPanelLoading(false)
+      return
+    }
+
     setPanelLoading(true)
     try {
       const fetches = getSuggestedDataFetches(intent)
@@ -64,13 +70,17 @@ export default function EnhancedChat() {
 
         const response = await fetch(url)
         if (!response.ok) {
-          console.error(`API error: ${response.status}`)
+          console.error(`API error: ${response.status} for ${url}`)
           setPanelData(undefined)
+          setPanelLoading(false)
           return
         }
 
         const data = await response.json()
         setPanelData(data)
+      } else {
+        // No data endpoints available for this intent
+        setPanelData(undefined)
       }
     } catch (error) {
       console.error('Error fetching panel data:', error)
