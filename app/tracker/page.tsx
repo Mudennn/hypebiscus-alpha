@@ -3,18 +3,18 @@
 import { useState } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
-import SmartMoneyTracker from '@/components/SmartMoneyTracker';
+import { WalletDeepAnalysis } from '@/components/smart-money';
 import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 export default function TrackerPage() {
   const [walletAddress, setWalletAddress] = useState(
-    'CTRWQ3mn1VSPdZgJdA3GiLCcBo1vA24gPnZGma89mrKn'
+    '0xd2DD7b597Fd2435b6dB61ddf48544fd931e6869F'
   );
   const [inputAddress, setInputAddress] = useState(walletAddress);
 
@@ -44,7 +44,7 @@ export default function TrackerPage() {
                 <div>
                   <CardTitle className="text-3xl">Smart Money Tracker</CardTitle>
                   <CardDescription>
-                    Track wallet inflows and outflows from smart traders in real-time
+                    Deep analysis of smart wallet performance, holdings, and trading patterns
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -60,7 +60,7 @@ export default function TrackerPage() {
                       }
                     }}
                   />
-                  <Button onClick={handleAddressSubmit}>Load</Button>
+                  <Button onClick={handleAddressSubmit}>Analyze</Button>
                 </div>
               </div>
             </CardHeader>
@@ -68,7 +68,7 @@ export default function TrackerPage() {
 
           {/* Main Content */}
           <div className="flex-1">
-            <SmartMoneyTracker walletAddress={walletAddress} />
+            <WalletDeepAnalysis walletAddress={walletAddress} />
           </div>
         </div>
       </SidebarInset>

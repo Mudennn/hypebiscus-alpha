@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
         hostname: 'static.jup.ag',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.zerion.io',
+        pathname: '/**',
+      },
     ],
   },
 };

@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 
 export default function HealthPage() {
   const [tokenAddress, setTokenAddress] = useState(
-    'CTRWQ3mn1VSPdZgJdA3GiLCcBo1vA24gPnZGma89mrKn'
+    '0xd2DD7b597Fd2435b6dB61ddf48544fd931e6869F'
   );
   const [inputAddress, setInputAddress] = useState(tokenAddress);
 
