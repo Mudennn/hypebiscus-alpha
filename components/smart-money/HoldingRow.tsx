@@ -9,6 +9,7 @@ interface HoldingRowProps {
   icon: string | null;
   chain?: string;
   chainName?: string;
+  categories?: string[];
 }
 
 export function HoldingRow({
@@ -19,6 +20,7 @@ export function HoldingRow({
   percentage,
   icon,
   chainName,
+  categories,
 }: HoldingRowProps) {
   const formatValue = (val: number): string => {
     if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
@@ -44,6 +46,21 @@ export function HoldingRow({
           <p className="text-xs text-slate-500">
             {name} {chainName && <span className="text-blue-600">• {chainName}</span>}
           </p>
+          {categories && categories.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {categories.slice(0, 2).map((cat, idx) => (
+                <span
+                  key={idx}
+                  className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded"
+                >
+                  {cat}
+                </span>
+              ))}
+              {categories.length > 2 && (
+                <span className="text-xs text-slate-400">+{categories.length - 2}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="text-right">

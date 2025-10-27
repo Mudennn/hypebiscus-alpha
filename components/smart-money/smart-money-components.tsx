@@ -16,12 +16,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  TrendingUp,
-  TrendingDown,
   Eye,
-  Bell,
   Share2,
-  Download,
 } from "lucide-react";
 import { DetectedIntent } from "@/lib/intent-detector";
 
@@ -30,7 +26,6 @@ import { DetectedIntent } from "@/lib/intent-detector";
  */
 export function WalletPanel({
   intent,
-  data,
   loading,
 }: {
   intent: DetectedIntent;
@@ -135,8 +130,6 @@ export function WalletPanel({
  * Market data panel - Shows trending tokens and sector performance
  */
 export function MarketPanel({
-  intent,
-  data,
   loading,
 }: {
   intent: DetectedIntent;

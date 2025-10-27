@@ -20,6 +20,8 @@ import {
 import { MetricCard } from './MetricCard';
 import { HoldingRow } from './HoldingRow';
 import { TransactionRow } from './TransactionRow';
+import { WalletProfile } from './WalletProfile';
+import { TradingBehavior } from './TradingBehavior';
 
 interface WalletDeepAnalysisProps {
   walletAddress?: string;
@@ -112,13 +114,21 @@ export default function WalletDeepAnalysis({
     );
   }
 
-  const { performance, portfolio, trading } = analysis;
+  const { performance, portfolio, trading, profile, behavior } = analysis;
   const isPositivePnL = performance.totalPnL >= 0;
   const isPositive30d = performance.return30d >= 0;
   const isPositive7d = performance.return7d >= 0;
 
   return (
     <div className="space-y-6">
+      {/* Wallet Profile & Trading Behavior */}
+      {profile && behavior && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WalletProfile profile={profile} />
+          <TradingBehavior behavior={behavior} />
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6">
         <div className="flex items-start justify-between mb-4">
@@ -222,6 +232,7 @@ export default function WalletDeepAnalysis({
                 icon={holding.icon}
                 chain={holding.chain}
                 chainName={holding.chainName}
+                categories={holding.categories}
               />
             ))}
           </div>

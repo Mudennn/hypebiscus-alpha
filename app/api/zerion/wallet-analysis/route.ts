@@ -5,6 +5,8 @@
 
 import { zerionClient } from '@/lib/zerion';
 import { NextRequest, NextResponse } from 'next/server';
+import { batchGetTokenCategories, getUniqueCategories } from '@/lib/coingecko';
+import { categorizeWallet, analyzeExpertise, analyzeTradingBehavior } from '@/lib/wallet-analyzer';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -60,8 +62,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       }).then(res => res.ok ? res.json() : null).catch(() => null),
 
-      // Recent transactions (last 50)
-      fetch(`https://api.zerion.io/v1/wallets/${address}/transactions/?page[size]=50`, {
+      // Recent transactions (fetch 20, filter trash, show top 5)
+      fetch(`https://api.zerion.io/v1/wallets/${address}/transactions/?page[size]=20`, {
         headers: {
           'Authorization': `Basic ${Buffer.from(`${process.env.NEXT_PUBLIC_ZERION_API_KEY}:`).toString('base64')}`,
           'accept': 'application/json',
@@ -103,8 +105,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
     ]);
 
-    // Calculate derived metrics
-    const analysis = calculateWalletMetrics({
+    // Calculate derived metrics (now async due to Coingecko API)
+    const analysis = await calculateWalletMetrics({
       portfolio,
       pnl,
       positions,
@@ -118,16 +120,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       address,
       timestamp: new Date().toISOString(),
       data: analysis,
-      raw: {
-        portfolio,
-        pnl,
-        positions,
-        transactions,
-        charts: {
-          chart30d,
-          chart7d,
-        },
-      },
+      // Raw data removed to reduce response size
     });
   } catch (error) {
     console.error('Wallet analysis error:', error);
@@ -201,8 +194,9 @@ function getChainName(chainId: string | undefined): string {
 
 /**
  * Calculate wallet performance metrics from raw Zerion data
+ * Now includes token categories and wallet profiling
  */
-function calculateWalletMetrics(data: any) {
+async function calculateWalletMetrics(data: any) {
   const { pnl, positions, transactions, chart30d, chart7d } = data;
 
   // Extract PnL data
@@ -233,26 +227,99 @@ function calculateWalletMetrics(data: any) {
   const txArray = transactions?.data || [];
   const tradingMetrics = analyzeTransactions(txArray);
 
-  // Portfolio diversification
+  // Prepare token list for category fetching (top 10 positions)
+  const tokenList = positionsArray
+    .filter((pos: any) => pos.attributes?.value > 0)
+    .sort((a: any, b: any) => b.attributes.value - a.attributes.value)
+    .slice(0, 10)
+    .map((pos: any) => {
+      const implementations = pos.attributes?.fungible_info?.implementations || [];
+      const positionChainId = pos.relationships?.chain?.data?.id || 'unknown';
+
+      // Find the implementation that matches the position's chain
+      const matchingImpl = implementations.find((impl: any) => impl.chain_id === positionChainId);
+
+      // Fallback to first implementation if no match found
+      const tokenAddress = matchingImpl?.address || implementations[0]?.address || '';
+
+      console.log(`Token: ${pos.attributes?.fungible_info?.symbol} on ${positionChainId}, address: ${tokenAddress}`);
+
+      return {
+        address: tokenAddress,
+        chainId: positionChainId,
+        symbol: pos.attributes?.fungible_info?.symbol || 'Unknown',
+      };
+    })
+    .filter((t: any) => t.address); // Only tokens with valid addresses
+
+  // Fetch token categories from CoinGecko API
+  console.log(`\nFetching categories for ${tokenList.length} tokens...`);
+  const categoryMap = await batchGetTokenCategories(tokenList);
+
+  // Portfolio diversification with categories (show top 10 instead of 5)
   const topHoldings = positionsArray
     .filter((pos: any) => pos.attributes?.value > 0)
     .sort((a: any, b: any) => b.attributes.value - a.attributes.value)
-    .slice(0, 5)
-    .map((pos: any) => ({
-      symbol: pos.attributes?.fungible_info?.symbol || 'Unknown',
-      name: pos.attributes?.fungible_info?.name || 'Unknown',
-      value: pos.attributes?.value || 0,
-      percentage: portfolioValue > 0 ? ((pos.attributes?.value || 0) / portfolioValue) * 100 : 0,
-      quantity: pos.attributes?.quantity?.numeric || '0',
-      icon: pos.attributes?.fungible_info?.icon?.url || null,
-      chain: pos.relationships?.chain?.data?.id || 'unknown',
-      chainName: getChainName(pos.relationships?.chain?.data?.id),
-    }));
+    .slice(0, 10)
+    .map((pos: any) => {
+      const implementations = pos.attributes?.fungible_info?.implementations || [];
+      const positionChainId = pos.relationships?.chain?.data?.id || 'unknown';
+
+      // Find the implementation that matches the position's chain
+      const matchingImpl = implementations.find((impl: any) => impl.chain_id === positionChainId);
+      const tokenAddress = matchingImpl?.address || implementations[0]?.address || '';
+      const address = tokenAddress.toLowerCase();
+
+      const categories = categoryMap.get(address) || [];
+
+      return {
+        symbol: pos.attributes?.fungible_info?.symbol || 'Unknown',
+        name: pos.attributes?.fungible_info?.name || 'Unknown',
+        value: pos.attributes?.value || 0,
+        percentage: portfolioValue > 0 ? ((pos.attributes?.value || 0) / portfolioValue) * 100 : 0,
+        quantity: pos.attributes?.quantity?.numeric || '0',
+        icon: pos.attributes?.fungible_info?.icon?.url || null,
+        chain: positionChainId,
+        chainName: getChainName(positionChainId),
+        categories: getUniqueCategories(categories),
+      };
+    });
 
   const totalHoldings = positionsArray.filter((pos: any) => pos.attributes?.value > 0).length;
   const top3Concentration = topHoldings.slice(0, 3).reduce((sum: number, h: any) => sum + h.percentage, 0);
+  const diversificationScore = Math.max(0, 100 - top3Concentration);
+
+  // Wallet profiling
+  const profile = categorizeWallet({
+    portfolioValue,
+    totalTransactions: tradingMetrics.totalTransactions,
+    tradingFrequency: tradingMetrics.tradingFrequency,
+    diversificationScore,
+    topHoldings,
+    recentActivity: tradingMetrics.recentActivity,
+  });
+
+  // Analyze expertise based on token categories
+  const expertise = analyzeExpertise(topHoldings, tradingMetrics.recentActivity);
+  profile.expertise = expertise;
+
+  // Analyze trading behavior
+  const behavior = analyzeTradingBehavior({
+    recentActivity: tradingMetrics.recentActivity,
+    portfolioValue,
+    topHoldings,
+    totalTransactions: tradingMetrics.totalTransactions,
+    tradingFrequency: tradingMetrics.tradingFrequency,
+    diversificationScore, // Pass the portfolio diversification score
+  });
 
   return {
+    // Wallet profile and categorization
+    profile,
+
+    // Trading behavior analysis
+    behavior,
+
     performance: {
       portfolioValue,
       realizedPnL: realizedGain,
@@ -269,7 +336,7 @@ function calculateWalletMetrics(data: any) {
       topHoldings,
       diversification: {
         top3Concentration,
-        diversificationScore: Math.max(0, 100 - top3Concentration), // Higher is more diversified
+        diversificationScore,
       },
     },
     trading: tradingMetrics,
@@ -303,12 +370,12 @@ function analyzeTransactions(transactions: any[]): any {
     };
   }
 
-  // Filter out trash transactions and get recent 10
+  // Filter out trash transactions and get recent 5
   const validTransactions = transactions.filter(
     (tx: any) => !tx.attributes?.flags?.is_trash
   );
 
-  const recentActivity = validTransactions.slice(0, 10).map((tx: any) => {
+  const recentActivity = validTransactions.slice(0, 5).map((tx: any) => {
     const attrs = tx.attributes || {};
     const operationType = attrs.operation_type || 'unknown';
     const chain = tx.relationships?.chain?.data?.id || 'unknown';
