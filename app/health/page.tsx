@@ -8,7 +8,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 

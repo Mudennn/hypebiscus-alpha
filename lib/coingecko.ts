@@ -19,59 +19,6 @@ interface CoinGeckoTokenInfo {
 }
 
 /**
- * Map chain IDs to human-readable chain names
- * Used by getChainName() function in wallet-analysis API
- */
-const CHAIN_TO_NETWORK: Record<string, string> = {
-  '0g': '0G',
-    'abstract': 'Abstract',
-    'ape': 'ApeChain',
-    'arbitrum': 'Arbitrum',
-    'aurora': 'Aurora',
-    'avalanche': 'Avalanche',
-    'base': 'Base',
-    'berachain': 'Berachain',
-    'binance-smart-chain': 'BSC',
-    'blast': 'Blast',
-    'celo': 'Celo',
-    'degen': 'Degen',
-    'ethereum': 'Ethereum',
-    'fantom': 'Fantom',
-    'gravity-alpha': 'Gravity',
-    'hyperevm': 'HyperEVM',
-    'ink': 'Ink',
-    'katana': 'Katana',
-    'lens': 'Lens',
-    'linea': 'Linea',
-    'manta-pacific': 'Manta',
-    'mantle': 'Mantle',
-    'metis-andromeda': 'Metis',
-    'mode': 'Mode',
-    'optimism': 'Optimism',
-    'plasma': 'Plasma',
-    'polygon': 'Polygon',
-    'polygon-zkevm': 'Polygon zkEVM',
-    'rari': 'RARI',
-    'ronin': 'Ronin',
-    'scroll': 'Scroll',
-    'sei': 'Sei',
-    'solana': 'Solana',
-    'somnia': 'Somnia',
-    'soneium': 'Soneium',
-    'sonic': 'Sonic',
-    'taiko': 'Taiko',
-    'unichain': 'Unichain',
-    'wonder': 'Wonder',
-    'world': 'World',
-    'xdai': 'Gnosis',
-    'xinfin-xdc': 'XinFin',
-    'zero': 'Zero',
-    'zkcandy': 'zkCandy',
-    'zksync-era': 'zkSync Era',
-    'zora': 'Zora',
-};
-
-/**
  * Map Zerion chain IDs to CoinGecko API network names
  * Used for fetching token info from CoinGecko API
  */
@@ -194,7 +141,7 @@ export async function batchGetTokenCategories(
   }
 
   // Summary
-  const tokensWithCategories = Array.from(results.entries()).filter(([_, cats]) => cats.length > 0);
+  const tokensWithCategories = Array.from(results.entries()).filter(([, cats]) => cats.length > 0);
   console.log(`\n📊 Summary: ${tokensWithCategories.length}/${tokens.length} tokens have categories`);
 
   if (tokensWithCategories.length > 0) {

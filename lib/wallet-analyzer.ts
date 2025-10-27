@@ -6,6 +6,24 @@
 export type WalletCategory = 'Whale' | 'Smart Trader' | 'Degen' | 'HODLer' | 'Bot' | 'Casual';
 export type RiskProfile = 'Conservative' | 'Moderate' | 'Aggressive';
 
+export interface Holding {
+  symbol: string;
+  value: number;
+  categories?: string[];
+}
+
+export interface Transfer {
+  value?: number;
+  direction?: string;
+  symbol?: string;
+  [key: string]: unknown;
+}
+
+export interface Transaction {
+  transfers?: Transfer[];
+  [key: string]: unknown;
+}
+
 export interface WalletProfile {
   category: WalletCategory;
   expertise: string[];           // ["DeFi", "Meme", "AI", etc.]
@@ -38,8 +56,8 @@ export function categorizeWallet(data: {
   totalTransactions: number;
   tradingFrequency: string;
   diversificationScore: number;
-  topHoldings: any[];
-  recentActivity: any[];
+  topHoldings: Holding[];
+  recentActivity: Transaction[];
 }): WalletProfile {
   const { portfolioValue, totalTransactions, tradingFrequency, diversificationScore } = data;
 
@@ -100,8 +118,7 @@ export function categorizeWallet(data: {
  * Analyze wallet expertise based on token categories they hold/trade
  */
 export function analyzeExpertise(
-  holdings: Array<{ symbol: string; value: number; categories?: string[] }>,
-  transactions: Array<{ transfers: any[] }>
+  holdings: Holding[]
 ): string[] {
   const categoryCount = new Map<string, number>();
   const categoryValue = new Map<string, number>();
@@ -151,14 +168,14 @@ export function analyzeExpertise(
  * Analyze trading behavior patterns
  */
 export function analyzeTradingBehavior(data: {
-  recentActivity: any[];
+  recentActivity: Transaction[];
   portfolioValue: number;
-  topHoldings: any[];
+  topHoldings: Holding[];
   totalTransactions: number;
   tradingFrequency: string;
   diversificationScore?: number;
 }): TradingBehavior {
-  const { recentActivity, portfolioValue, topHoldings, totalTransactions, tradingFrequency, diversificationScore } = data;
+  const { recentActivity, topHoldings, totalTransactions, tradingFrequency, diversificationScore } = data;
 
   // Calculate average trade size
   let totalTradeValue = 0;
@@ -166,7 +183,7 @@ export function analyzeTradingBehavior(data: {
 
   recentActivity.forEach(tx => {
     if (tx.transfers) {
-      tx.transfers.forEach((transfer: any) => {
+      tx.transfers.forEach((transfer: Transfer) => {
         if (transfer.value && transfer.value > 0) {
           totalTradeValue += transfer.value;
           tradeCount++;

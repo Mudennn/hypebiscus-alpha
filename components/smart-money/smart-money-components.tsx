@@ -29,7 +29,7 @@ export function WalletPanel({
   loading,
 }: {
   intent: DetectedIntent;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   loading?: boolean;
 }) {
   const wallet = intent.wallets?.[0] || "Unknown";
@@ -133,7 +133,7 @@ export function MarketPanel({
   loading,
 }: {
   intent: DetectedIntent;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   loading?: boolean;
 }) {
   return (
@@ -200,11 +200,10 @@ export function MarketPanel({
  */
 export function ComparisonPanel({
   intent,
-  data,
   loading,
 }: {
   intent: DetectedIntent;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   loading?: boolean;
 }) {
   const from = intent.comparison?.from || "Token A";
@@ -320,7 +319,7 @@ export function AlertPanel({ intent }: { intent: DetectedIntent }) {
       </Card>
 
       <div className="text-xs text-neutral-500 text-center">
-        You'll receive notifications when this condition is met
+        You&apos;ll receive notifications when this condition is met
       </div>
     </div>
   );

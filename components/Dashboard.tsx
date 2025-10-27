@@ -7,13 +7,12 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface DashboardProps {
-  userId?: string;
-}
+// interface DashboardProps {
+//   userId?: string;
+// }
 
-export default function Dashboard({ userId = 'demo-user' }: DashboardProps) {
+export default function Dashboard() {
   return (
     <SidebarProvider
       style={

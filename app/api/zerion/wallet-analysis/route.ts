@@ -8,6 +8,170 @@ import { NextRequest, NextResponse } from 'next/server';
 import { batchGetTokenCategories, getUniqueCategories } from '@/lib/coingecko';
 import { categorizeWallet, analyzeExpertise, analyzeTradingBehavior } from '@/lib/wallet-analyzer';
 
+// Type definitions for Zerion API responses
+interface ZerionPosition {
+  attributes?: {
+    value?: number;
+    quantity?: {
+      numeric?: string;
+    };
+    fungible_info?: {
+      symbol?: string;
+      name?: string;
+      icon?: {
+        url?: string;
+      };
+      implementations?: Array<{
+        chain_id: string;
+        address: string;
+      }>;
+    };
+  };
+  relationships?: {
+    chain?: {
+      data?: {
+        id?: string;
+      };
+    };
+  };
+}
+
+interface ZerionTransaction {
+  id?: string;
+  attributes?: {
+    mined_at?: string;
+    mined_at_block?: number;
+    operation_type?: string;
+    hash?: string;
+    status?: string;
+    sent_from?: string;
+    sent_to?: string;
+    flags?: {
+      is_trash?: boolean;
+    };
+    transfers?: Array<{
+      direction?: string;
+      quantity?: {
+        numeric?: string;
+        float?: number;
+      };
+      value?: number;
+      price?: number;
+      sender?: string;
+      recipient?: string;
+      fungible_info?: {
+        symbol?: string;
+        name?: string;
+        icon?: {
+          url?: string;
+        };
+        flags?: {
+          verified?: boolean;
+        };
+      };
+      nft_info?: {
+        symbol?: string;
+        name?: string;
+        icon?: {
+          url?: string;
+        };
+        flags?: {
+          verified?: boolean;
+        };
+      };
+    }>;
+    fee?: {
+      quantity?: {
+        numeric?: string;
+        float?: number;
+      };
+      value?: number;
+      fungible_info?: {
+        symbol?: string;
+      };
+    };
+  };
+  relationships?: {
+    chain?: {
+      data?: {
+        id?: string;
+      };
+    };
+  };
+}
+
+interface ChartPoint {
+  [0]: number;  // timestamp
+  [1]: number;  // value
+}
+
+interface ZerionChartData {
+  data?: {
+    attributes?: {
+      points?: ChartPoint[];
+    };
+  };
+}
+
+interface TokenListItem {
+  address: string;
+  chainId: string;
+  symbol: string;
+}
+
+interface Holding {
+  symbol: string;
+  name: string;
+  value: number;
+  percentage: number;
+  quantity: string;
+  icon: string | null;
+  chain: string;
+  chainName: string;
+  categories?: string[];
+}
+
+interface ProcessedTransaction {
+  type: string;
+  timestamp?: string;
+  hash?: string;
+  chain: string;
+  chainName: string;
+  status?: string;
+  transfers?: Array<{
+    symbol: string;
+    name: string;
+    direction: string;
+    quantity: string;
+    quantityFloat: number;
+    value?: number;
+    price?: number;
+    sender?: string;
+    recipient?: string;
+    icon?: string;
+    verified?: boolean;
+  }>;
+  fee?: {
+    symbol: string;
+    amount: string;
+    amountFloat: number;
+    value?: number;
+  } | null;
+  sentFrom?: string;
+  sentTo?: string;
+  block?: number;
+  [key: string]: unknown;
+}
+
+interface WalletData {
+  portfolio: unknown;
+  pnl: unknown;
+  positions: { data?: ZerionPosition[] };
+  transactions: { data?: ZerionTransaction[] };
+  chart30d: ZerionChartData | null;
+  chart7d: ZerionChartData | null;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -196,11 +360,11 @@ function getChainName(chainId: string | undefined): string {
  * Calculate wallet performance metrics from raw Zerion data
  * Now includes token categories and wallet profiling
  */
-async function calculateWalletMetrics(data: any) {
+async function calculateWalletMetrics(data: WalletData) {
   const { pnl, positions, transactions, chart30d, chart7d } = data;
 
   // Extract PnL data
-  const pnlData = pnl?.data?.attributes || {};
+  const pnlData = (pnl as { data?: { attributes?: Record<string, number> } })?.data?.attributes || {};
   const realizedGain = pnlData.realized_gain || 0;
   const unrealizedGain = pnlData.unrealized_gain || 0;
   const totalPnL = realizedGain + unrealizedGain;
@@ -211,8 +375,8 @@ async function calculateWalletMetrics(data: any) {
   const pnlPercentage = (totalPnL / netInvested) * 100;
 
   // Extract portfolio value
-  const positionsArray = positions?.data || [];
-  const portfolioValue = positionsArray.reduce((sum: number, pos: any) => {
+  const positionsArray: ZerionPosition[] = positions?.data || [];
+  const portfolioValue = positionsArray.reduce((sum: number, pos: ZerionPosition) => {
     return sum + (pos.attributes?.value || 0);
   }, 0);
 
@@ -224,20 +388,20 @@ async function calculateWalletMetrics(data: any) {
   const return7d = calculateReturn(chart7dPoints);
 
   // Analyze transactions for trading behavior
-  const txArray = transactions?.data || [];
+  const txArray: ZerionTransaction[] = transactions?.data || [];
   const tradingMetrics = analyzeTransactions(txArray);
 
   // Prepare token list for category fetching (top 10 positions)
-  const tokenList = positionsArray
-    .filter((pos: any) => pos.attributes?.value > 0)
-    .sort((a: any, b: any) => b.attributes.value - a.attributes.value)
+  const tokenList: TokenListItem[] = positionsArray
+    .filter((pos: ZerionPosition) => (pos.attributes?.value || 0) > 0)
+    .sort((a: ZerionPosition, b: ZerionPosition) => (b.attributes?.value || 0) - (a.attributes?.value || 0))
     .slice(0, 10)
-    .map((pos: any) => {
+    .map((pos: ZerionPosition): TokenListItem | null => {
       const implementations = pos.attributes?.fungible_info?.implementations || [];
       const positionChainId = pos.relationships?.chain?.data?.id || 'unknown';
 
       // Find the implementation that matches the position's chain
-      const matchingImpl = implementations.find((impl: any) => impl.chain_id === positionChainId);
+      const matchingImpl = implementations.find((impl) => impl.chain_id === positionChainId);
 
       // Fallback to first implementation if no match found
       const tokenAddress = matchingImpl?.address || implementations[0]?.address || '';
@@ -250,23 +414,23 @@ async function calculateWalletMetrics(data: any) {
         symbol: pos.attributes?.fungible_info?.symbol || 'Unknown',
       };
     })
-    .filter((t: any) => t.address); // Only tokens with valid addresses
+    .filter((t): t is TokenListItem => t !== null && t.address !== ''); // Only tokens with valid addresses
 
   // Fetch token categories from CoinGecko API
   console.log(`\nFetching categories for ${tokenList.length} tokens...`);
   const categoryMap = await batchGetTokenCategories(tokenList);
 
   // Portfolio diversification with categories (show top 10 instead of 5)
-  const topHoldings = positionsArray
-    .filter((pos: any) => pos.attributes?.value > 0)
-    .sort((a: any, b: any) => b.attributes.value - a.attributes.value)
+  const topHoldings: Holding[] = positionsArray
+    .filter((pos: ZerionPosition) => (pos.attributes?.value || 0) > 0)
+    .sort((a: ZerionPosition, b: ZerionPosition) => (b.attributes?.value || 0) - (a.attributes?.value || 0))
     .slice(0, 10)
-    .map((pos: any) => {
+    .map((pos: ZerionPosition): Holding => {
       const implementations = pos.attributes?.fungible_info?.implementations || [];
       const positionChainId = pos.relationships?.chain?.data?.id || 'unknown';
 
       // Find the implementation that matches the position's chain
-      const matchingImpl = implementations.find((impl: any) => impl.chain_id === positionChainId);
+      const matchingImpl = implementations.find((impl) => impl.chain_id === positionChainId);
       const tokenAddress = matchingImpl?.address || implementations[0]?.address || '';
       const address = tokenAddress.toLowerCase();
 
@@ -285,8 +449,8 @@ async function calculateWalletMetrics(data: any) {
       };
     });
 
-  const totalHoldings = positionsArray.filter((pos: any) => pos.attributes?.value > 0).length;
-  const top3Concentration = topHoldings.slice(0, 3).reduce((sum: number, h: any) => sum + h.percentage, 0);
+  const totalHoldings = positionsArray.filter((pos: ZerionPosition) => (pos.attributes?.value || 0) > 0).length;
+  const top3Concentration = topHoldings.slice(0, 3).reduce((sum: number, h: Holding) => sum + h.percentage, 0);
   const diversificationScore = Math.max(0, 100 - top3Concentration);
 
   // Wallet profiling
@@ -300,7 +464,7 @@ async function calculateWalletMetrics(data: any) {
   });
 
   // Analyze expertise based on token categories
-  const expertise = analyzeExpertise(topHoldings, tradingMetrics.recentActivity);
+  const expertise = analyzeExpertise(topHoldings);
   profile.expertise = expertise;
 
   // Analyze trading behavior
@@ -346,7 +510,7 @@ async function calculateWalletMetrics(data: any) {
 /**
  * Calculate percentage return from chart points
  */
-function calculateReturn(points: any[]): number {
+function calculateReturn(points: ChartPoint[]): number {
   if (!points || points.length < 2) return 0;
 
   const firstValue = points[0]?.[1] || 0;
@@ -360,7 +524,12 @@ function calculateReturn(points: any[]): number {
 /**
  * Analyze transactions to calculate trading metrics
  */
-function analyzeTransactions(transactions: any[]): any {
+function analyzeTransactions(transactions: ZerionTransaction[]): {
+  totalTransactions: number;
+  recentActivity: ProcessedTransaction[];
+  tradingFrequency: string;
+  lastActivity: string | null;
+} {
   if (!transactions || transactions.length === 0) {
     return {
       totalTransactions: 0,
@@ -372,16 +541,16 @@ function analyzeTransactions(transactions: any[]): any {
 
   // Filter out trash transactions and get recent 5
   const validTransactions = transactions.filter(
-    (tx: any) => !tx.attributes?.flags?.is_trash
+    (tx: ZerionTransaction) => !tx.attributes?.flags?.is_trash
   );
 
-  const recentActivity = validTransactions.slice(0, 5).map((tx: any) => {
+  const recentActivity = validTransactions.slice(0, 5).map((tx: ZerionTransaction) => {
     const attrs = tx.attributes || {};
     const operationType = attrs.operation_type || 'unknown';
     const chain = tx.relationships?.chain?.data?.id || 'unknown';
 
     // Extract detailed token transfers
-    const transfers = (attrs.transfers || []).map((transfer: any) => {
+    const transfers = (attrs.transfers || []).map((transfer) => {
       const fungibleInfo = transfer.fungible_info || transfer.nft_info;
       return {
         symbol: fungibleInfo?.symbol || 'Unknown',
@@ -389,11 +558,11 @@ function analyzeTransactions(transactions: any[]): any {
         direction: transfer.direction || 'unknown',
         quantity: transfer.quantity?.numeric || '0',
         quantityFloat: transfer.quantity?.float || 0,
-        value: transfer.value || null,
-        price: transfer.price || null,
+        value: transfer.value || undefined,
+        price: transfer.price || undefined,
         sender: transfer.sender,
         recipient: transfer.recipient,
-        icon: fungibleInfo?.icon?.url || null,
+        icon: fungibleInfo?.icon?.url || undefined,
         verified: fungibleInfo?.flags?.verified || false,
       };
     });
@@ -404,9 +573,9 @@ function analyzeTransactions(transactions: any[]): any {
           symbol: attrs.fee.fungible_info?.symbol || 'Unknown',
           amount: attrs.fee.quantity?.numeric || '0',
           amountFloat: attrs.fee.quantity?.float || 0,
-          value: attrs.fee.value || null,
+          value: attrs.fee.value || undefined,
         }
-      : null;
+      : undefined;
 
     return {
       type: operationType,
@@ -442,6 +611,6 @@ function analyzeTransactions(transactions: any[]): any {
     totalTransactions: transactions.length,
     recentActivity,
     tradingFrequency,
-    lastActivity: last,
+    lastActivity: last || null,
   };
 }

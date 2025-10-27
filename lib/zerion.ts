@@ -81,6 +81,23 @@ interface ZerionTokenResponse {
   };
 }
 
+interface ZerionMarketData {
+  data?: {
+    id?: string;
+    type?: string;
+    attributes?: {
+      symbol?: string;
+      name?: string;
+      price?: number;
+      market_cap?: number;
+      volume_24h?: number;
+      price_change_24h?: number;
+      [key: string]: unknown;
+    };
+  };
+  [key: string]: unknown;
+}
+
 const getAuthHeader = (): string => {
   const credentials = `${ZERION_API_KEY}:`;
   const encoded = Buffer.from(credentials).toString('base64');
@@ -91,7 +108,7 @@ export const zerionClient = {
   /**
    * Fetch token market data with price (using market endpoint)
    */
-  async getTokenMarketData(tokenSymbol: string): Promise<any> {
+  async getTokenMarketData(tokenSymbol: string): Promise<ZerionMarketData> {
     try {
       const response = await fetch(
         `${ZERION_API_BASE}/market/tokens/${tokenSymbol.toLowerCase()}`,

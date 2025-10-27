@@ -1,10 +1,31 @@
 import Image from 'next/image';
 
+interface Transfer {
+  symbol: string;
+  name: string;
+  direction: 'in' | 'out' | string;
+  quantity: string;
+  quantityFloat: number;
+  value?: number;
+  price?: number;
+  sender?: string;
+  recipient?: string;
+  icon?: string;
+  verified?: boolean;
+}
+
+interface Fee {
+  symbol: string;
+  amount: string;
+  amountFloat: number;
+  value?: number;
+}
+
 interface TransactionRowProps {
   type: string;
-  transfers: any[];
+  transfers: Transfer[];
   timestamp: string;
-  fee: any;
+  fee?: Fee | null;
   hash: string;
   chain?: string;
   chainName?: string;
@@ -109,7 +130,7 @@ export function TransactionRow({
       {/* Transfers */}
       {transfers && transfers.length > 0 && (
         <div className="space-y-1 mb-2">
-          {transfers.slice(0, 3).map((transfer: any, i: number) => (
+          {transfers.slice(0, 3).map((transfer: Transfer, i: number) => (
             <div key={i} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1.5">
                 {transfer.direction === 'in' ? (

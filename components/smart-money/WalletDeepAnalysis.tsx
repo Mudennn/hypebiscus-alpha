@@ -23,6 +23,105 @@ import { TransactionRow } from './TransactionRow';
 import { WalletProfile } from './WalletProfile';
 import { TradingBehavior } from './TradingBehavior';
 
+interface Holding {
+  symbol: string;
+  name: string;
+  value: number;
+  percentage: number;
+  quantity: string;
+  icon: string | null;
+  chain: string;
+  chainName: string;
+  categories?: string[];
+}
+
+interface Transfer {
+  symbol: string;
+  name: string;
+  direction: string;
+  quantity: string;
+  quantityFloat: number;
+  value?: number;
+  price?: number;
+  sender?: string;
+  recipient?: string;
+  icon?: string;
+  verified?: boolean;
+}
+
+interface Transaction {
+  type: string;
+  timestamp: string;
+  hash: string;
+  chain: string;
+  chainName: string;
+  status?: string;
+  transfers: Transfer[];
+  fee?: {
+    symbol: string;
+    amount: string;
+    amountFloat: number;
+    value?: number;
+  } | null;
+  sentFrom?: string;
+  sentTo?: string;
+  block?: number;
+}
+
+interface WalletProfile {
+  category: string;
+  expertise: string[];
+  riskProfile: string;
+  confidence: number;
+  reasoning: string;
+}
+
+interface TradingBehavior {
+  avgTradeSize: number;
+  tradingFrequency: string;
+  tradesPerWeek: number;
+  preferredCategories: Array<{
+    category: string;
+    percentage: number;
+    tradeCount: number;
+  }>;
+  riskMetrics: {
+    portfolioConcentration: number;
+    categoryDiversification: number;
+    avgPositionSize: number;
+  };
+}
+
+interface WalletAnalysis {
+  profile: WalletProfile;
+  behavior: TradingBehavior;
+  performance: {
+    portfolioValue: number;
+    totalPnL: number;
+    realizedPnL: number;
+    unrealizedPnL: number;
+    pnlPercentage: number;
+    weeklyReturn: number;
+    monthlyReturn: number;
+    return7d: number;  // Added
+    return30d: number; // Added
+  };
+  portfolio: {
+    topHoldings: Holding[];
+    totalHoldings: number;
+    diversification: {
+      top3Concentration: number;
+      diversificationScore: number;
+    };
+  };
+  trading: {
+    totalTransactions: number;
+    recentActivity: Transaction[];
+    tradingFrequency: string;
+    lastActivity: string | null;
+  };
+}
+
 interface WalletDeepAnalysisProps {
   walletAddress?: string;
 }
@@ -30,7 +129,7 @@ interface WalletDeepAnalysisProps {
 export default function WalletDeepAnalysis({
   walletAddress = '0xd2DD7b597Fd2435b6dB61ddf48544fd931e6869F',
 }: WalletDeepAnalysisProps) {
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<WalletAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -221,7 +320,7 @@ export default function WalletDeepAnalysis({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {portfolio.topHoldings.map((holding: any, index: number) => (
+            {portfolio.topHoldings.map((holding: Holding, index: number) => (
               <HoldingRow
                 key={index}
                 rank={index + 1}
@@ -238,8 +337,8 @@ export default function WalletDeepAnalysis({
           </div>
 
           {portfolio.diversification.top3Concentration > 70 && (
-            <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
-              <p className="text-yellow-300 text-sm flex items-center gap-2">
+            <div className="mt-4 p-3 bg-red-900/10 border border-red-500 rounded-lg">
+              <p className="text-red-500 text-sm flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
                 High concentration: Top 3 holdings represent {portfolio.diversification.top3Concentration.toFixed(0)}% of portfolio
               </p>
@@ -261,7 +360,7 @@ export default function WalletDeepAnalysis({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {trading.recentActivity.slice(0, 5).map((tx: any, index: number) => (
+            {trading.recentActivity.slice(0, 5).map((tx: Transaction, index: number) => (
               <TransactionRow
                 key={index}
                 type={tx.type}

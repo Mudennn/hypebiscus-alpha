@@ -18,10 +18,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetectedIntent } from "@/lib/intent-detector";
 
+interface TokenData {
+  symbol?: string;
+  name?: string;
+  price?: number;
+  priceChange24h?: number;
+  marketCap?: number;
+  volume24h?: number;
+  liquidity?: number;
+  holderCount?: number;
+  organicScore?: number;
+  icon?: string;
+  [key: string]: unknown;
+}
+
 interface DataPanelProps {
   intent: DetectedIntent | null;
   loading?: boolean;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export default function DataPanel({
@@ -84,13 +98,13 @@ function TokenPanel({
   loading,
 }: {
   intent: DetectedIntent;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   loading?: boolean;
 }) {
   const tokenSymbol = intent.tokens?.[0] || "Unknown";
 
   // Extract Jupiter token data from API response
-  const tokenData = data?.data;
+  const tokenData = data?.data as TokenData | undefined;
 
   // Helper to format large numbers
   const formatNumber = (num: number | null | undefined) => {
@@ -127,7 +141,7 @@ function TokenPanel({
       <Card>
         <div className="flex items-center justify-start px-5 gap-2">
           <Image
-            src={tokenData.icon}
+            src={tokenData?.icon || '/placeholder-token.png'}
             alt={tokenSymbol}
             width={40}
             height={40}
@@ -224,10 +238,10 @@ function TokenPanel({
           {(() => {
             // Calculate risk score based on multiple factors
             let riskScore = 0;
-            let riskFactors = [];
+            const riskFactors: Array<{ label: string; status: 'safe' | 'warning' | 'danger' }> = [];
 
             // Organic Score (40% weight)
-            if (tokenData.organicScore) {
+            if (tokenData?.organicScore) {
               if (tokenData.organicScore >= 70) {
                 riskScore += 40;
                 riskFactors.push({ label: "High Quality Token", status: "safe" as const });
@@ -241,7 +255,7 @@ function TokenPanel({
             }
 
             // Liquidity (30% weight)
-            if (tokenData.liquidity) {
+            if (tokenData?.liquidity) {
               if (tokenData.liquidity >= 1000000) {
                 riskScore += 30;
                 riskFactors.push({ label: "High Liquidity", status: "safe" as const });
@@ -255,7 +269,7 @@ function TokenPanel({
             }
 
             // Holder Distribution (20% weight)
-            if (tokenData.holderCount) {
+            if (tokenData?.holderCount) {
               if (tokenData.holderCount >= 100000) {
                 riskScore += 20;
                 riskFactors.push({ label: "Wide Distribution", status: "safe" as const });
@@ -269,7 +283,7 @@ function TokenPanel({
             }
 
             // Price Volatility (10% weight)
-            if (tokenData.priceChange24h !== null && tokenData.priceChange24h !== undefined) {
+            if (tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined) {
               const absChange = Math.abs(tokenData.priceChange24h);
               if (absChange < 10) {
                 riskScore += 10;
@@ -349,10 +363,10 @@ function TokenPanel({
           {(() => {
             // Calculate recommendation based on multiple signals
             let score = 0;
-            let signals = [];
+            const signals: string[] = [];
 
             // Organic Score signal
-            if (tokenData.organicScore) {
+            if (tokenData?.organicScore) {
               if (tokenData.organicScore >= 70) {
                 score += 3;
                 signals.push("High quality token");
@@ -363,7 +377,7 @@ function TokenPanel({
             }
 
             // Liquidity signal
-            if (tokenData.liquidity) {
+            if (tokenData?.liquidity) {
               if (tokenData.liquidity >= 1000000) {
                 score += 2;
                 signals.push("Easy to trade");
@@ -374,7 +388,7 @@ function TokenPanel({
             }
 
             // Price momentum signal
-            if (tokenData.priceChange24h !== null && tokenData.priceChange24h !== undefined) {
+            if (tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined) {
               if (tokenData.priceChange24h > 10) {
                 score += 1;
                 signals.push("Strong upward momentum");
@@ -385,7 +399,7 @@ function TokenPanel({
             }
 
             // Holder distribution signal
-            if (tokenData.holderCount) {
+            if (tokenData?.holderCount) {
               if (tokenData.holderCount >= 100000) {
                 score += 1;
                 signals.push("Wide holder base");
@@ -444,7 +458,7 @@ function TokenPanel({
       </Card>
 
       {/* Trading Activity (24h) */}
-      {tokenData.priceChange24h !== null && tokenData.priceChange24h !== undefined && (
+      {tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">24h Trading Activity</CardTitle>

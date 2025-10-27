@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { detectIntent, generateIntentContext, getSuggestedDataFetches, DetectedIntent } from '@/lib/intent-detector'
 import DataPanel from '@/components/chatbot/DataPanel'
 import { Send, Loader2 } from 'lucide-react'
@@ -19,7 +18,7 @@ export default function EnhancedChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentIntent, setCurrentIntent] = useState<DetectedIntent | null>(null)
-  const [panelData, setPanelData] = useState<Record<string, any> | undefined>()
+  const [panelData, setPanelData] = useState<Record<string, unknown> | undefined>()
   const [panelLoading, setPanelLoading] = useState(false)
   const [showPanel, setShowPanel] = useState(false) // Control when to show panel
   const messagesEndRef = useRef<HTMLDivElement>(null)

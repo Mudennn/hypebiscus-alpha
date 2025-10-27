@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
 
 interface TokenHealthScoreProps {
@@ -20,11 +20,7 @@ export default function TokenHealthScore({ tokenAddress }: TokenHealthScoreProps
   const [error, setError] = useState<string | null>(null);
   const [tokenData, setTokenData] = useState<Record<string, unknown> | null>(null);
 
-  useEffect(() => {
-    fetchTokenHealth();
-  }, [tokenAddress]);
-
-  const fetchTokenHealth = async () => {
+  const fetchTokenHealth = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -47,7 +43,11 @@ export default function TokenHealthScore({ tokenAddress }: TokenHealthScoreProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [tokenAddress]);
+
+  useEffect(() => {
+    fetchTokenHealth();
+  }, [fetchTokenHealth]);
 
   const calculateHealthMetrics = (): HealthMetrics => {
     // Simulate health score calculation based on token attributes

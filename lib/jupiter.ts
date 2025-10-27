@@ -26,6 +26,21 @@ interface JupiterToken {
   };
 }
 
+interface TokenWithPrice {
+  symbol: string;
+  name: string;
+  id: string;
+  decimals: number;
+  icon?: string;
+  price: number | null;
+  marketCap?: number;
+  liquidity?: number;
+  holderCount?: number;
+  organicScore?: number;
+  priceChange24h?: number;
+  volume24h?: number | null;
+}
+
 export const jupiterClient = {
   /**
    * Search for token by symbol - uses search endpoint which includes price data
@@ -67,7 +82,7 @@ export const jupiterClient = {
   /**
    * Get token info with price by symbol
    */
-  async getTokenWithPrice(symbol: string): Promise<any> {
+  async getTokenWithPrice(symbol: string): Promise<TokenWithPrice | null> {
     try {
       console.log(`Getting token with price for: ${symbol}`);
 
@@ -105,9 +120,9 @@ export const jupiterClient = {
   /**
    * Get multiple token prices at once
    */
-  async getMultipleTokensWithPrices(symbols: string[]): Promise<any[]> {
+  async getMultipleTokensWithPrices(symbols: string[]): Promise<TokenWithPrice[]> {
     try {
-      const results = [];
+      const results: TokenWithPrice[] = [];
 
       for (const symbol of symbols) {
         const tokenData = await this.getTokenWithPrice(symbol);
