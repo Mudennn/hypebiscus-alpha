@@ -166,18 +166,19 @@ export default function WalletDeepAnalysis({
   };
 
   const formatValue = (value: number): string => {
-    if (value >= 1_000_000) {
-      return `$${(value / 1_000_000).toFixed(2)}M`;
+    const absValue = Math.abs(value);
+    if (absValue >= 1_000_000) {
+      return `${value >= 0 ? '$' : '-$'}${(absValue / 1_000_000).toFixed(2)}M`;
     }
-    if (value >= 1_000) {
-      return `$${(value / 1_000).toFixed(2)}K`;
+    if (absValue >= 1_000) {
+      return `${value >= 0 ? '$' : '-$'}${(absValue / 1_000).toFixed(2)}K`;
     }
-    return `$${value.toFixed(2)}`;
+    return `${value >= 0 ? '$' : '-$'}${absValue.toFixed(0)}`;
   };
 
   const formatPercentage = (value: number): string => {
     const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
+    return `${sign}${value.toFixed(1)}%`;
   };
 
   const formatAddress = (address: string): string => {

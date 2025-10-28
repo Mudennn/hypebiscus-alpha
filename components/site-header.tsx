@@ -14,6 +14,8 @@ export function SiteHeader() {
         return 'Dashboard'
       case '/tracker':
         return 'Smart Money Tracker'
+      case '/tracker/details':
+        return 'Wallet Details'
       // case '/health':
       //   return 'Token Health'
       // case '/discovery':
