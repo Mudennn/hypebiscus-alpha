@@ -47,15 +47,14 @@ export default function EnhancedChat() {
 
   /**
    * Fetch data for the right panel based on intent
+   * Returns the fetched data instead of just setting state
    */
-  const fetchPanelData = async (intent: DetectedIntent) => {
+  const fetchPanelData = async (intent: DetectedIntent): Promise<Record<string, unknown> | undefined> => {
     // Don't fetch if it's a general query
     if (intent.type === 'general' || (!intent.tokens && !intent.wallets)) {
-      setPanelLoading(false)
-      return
+      return undefined
     }
 
-    setPanelLoading(true)
     try {
       const fetches = getSuggestedDataFetches(intent)
 
@@ -70,22 +69,18 @@ export default function EnhancedChat() {
         const response = await fetch(url)
         if (!response.ok) {
           console.error(`API error: ${response.status} for ${url}`)
-          setPanelData(undefined)
-          setPanelLoading(false)
-          return
+          return undefined
         }
 
         const data = await response.json()
-        setPanelData(data)
+        return data
       } else {
         // No data endpoints available for this intent
-        setPanelData(undefined)
+        return undefined
       }
     } catch (error) {
       console.error('Error fetching panel data:', error)
-      setPanelData(undefined)
-    } finally {
-      setPanelLoading(false)
+      return undefined
     }
   }
 
@@ -95,8 +90,6 @@ export default function EnhancedChat() {
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
-    // Save current panel data and intent before clearing input
-    const savedPanelData = panelData
     const savedIntent = currentIntent
 
     // Add user message
@@ -113,16 +106,18 @@ export default function EnhancedChat() {
     setShowPanel(false) // Hide panel initially
     setPanelLoading(true) // Keep panel in loading state
 
-    // Fetch panel data based on the current intent
-    if (savedIntent && savedIntent.type !== 'general' && (savedIntent.tokens || savedIntent.wallets)) {
-      fetchPanelData(savedIntent)
-    }
-
     try {
+      // Fetch panel data FIRST and wait for it to complete
+      let fetchedPanelData: Record<string, unknown> | undefined = undefined
+      if (savedIntent && savedIntent.type !== 'general' && (savedIntent.tokens || savedIntent.wallets)) {
+        fetchedPanelData = await fetchPanelData(savedIntent)
+        setPanelData(fetchedPanelData) // Update state with fetched data
+      }
+
       // Generate intent context for AI
       const intentContext = savedIntent ? generateIntentContext(savedIntent) : ''
 
-      // Call Claude API with Jupiter data context
+      // Call Claude API with fetched Zerion data context
       const response = await fetch('/api/claude/chat', {
         method: 'POST',
         headers: {
@@ -135,7 +130,7 @@ export default function EnhancedChat() {
           contextData: {
             intent: savedIntent,
             intentContext,
-            jupiterData: savedPanelData, // Include fetched Jupiter data for Claude context
+            panelData: fetchedPanelData, // Include freshly fetched Zerion token/DApp data for Claude context
           },
         }),
       })
@@ -200,7 +195,7 @@ export default function EnhancedChat() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Solana Alpha AI</h2>
+                <h2 className="text-2xl font-bold">Hypebiscus Alpha</h2>
                 <p className="text-neutral-600">Ask about tokens, wallets, or market trends</p>
               </div>
 
@@ -220,12 +215,12 @@ export default function EnhancedChat() {
                   }
                 />
                 <SuggestedPrompt
-                  text="Compare USDC vs USDT"
-                  onClick={() => handleSuggestedPrompt('Compare USDC vs USDT')}
+                  text="What's trending in crypto?"
+                  onClick={() => handleSuggestedPrompt('What\'s trending in crypto?')}
                 />
                 <SuggestedPrompt
-                  text="Is PUMP token safe?"
-                  onClick={() => handleSuggestedPrompt('Is PUMP token safe?')}
+                  text="What DApps should I explore?"
+                  onClick={() => handleSuggestedPrompt('What DApps should I explore?')}
                 />
               </div>
             </div>
@@ -297,13 +292,13 @@ export default function EnhancedChat() {
           </div>
 
           {/* Intent Indicator - Only show when typing before sending */}
-          {messages.length === 0 && currentIntent && currentIntent.type !== 'general' && (
+          {/* {messages.length === 0 && currentIntent && currentIntent.type !== 'general' && (
             <div className="text-xs text-neutral-600 bg-neutral-50 p-2 rounded">
               <span className="font-semibold">Intent detected:</span> {currentIntent.type}
               {currentIntent.tokens && ` • ${currentIntent.tokens.join(', ')}`}
               {currentIntent.wallets && ` • ${currentIntent.wallets[0].slice(0, 10)}...`}
             </div>
-          )}
+          )} */}
         </div>
       </div>
 

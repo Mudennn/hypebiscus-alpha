@@ -3,13 +3,14 @@
  * Analyzes user prompts and extracts actionable intents
  */
 
-export type IntentType = 'token' | 'wallet' | 'market' | 'comparison' | 'alert' | 'general'
+export type IntentType = 'token' | 'wallet' | 'market' | 'comparison' | 'alert' | 'dapp' | 'general'
 
 export interface DetectedIntent {
   type: IntentType
   confidence: number // 0-1
   tokens?: string[] // Token symbols/addresses
   wallets?: string[] // Wallet addresses
+  dapps?: string[] // DApp protocol names
   comparison?: {
     from: string
     to: string
@@ -17,6 +18,25 @@ export interface DetectedIntent {
   alertType?: 'price' | 'volume' | 'whale' | 'risk'
   rawQuery: string
 }
+
+/**
+ * DApp protocol names (comprehensive list)
+ */
+const DAPP_PROTOCOLS = [
+  // DEXs
+  'uniswap', 'pancakeswap', 'sushiswap', 'curve', 'balancer', 'dydx', 'aave', '0x', 'matcha',
+  // Lending
+  'compound', 'aave', 'maker', 'flux', 'iron', 'solend', 'port', 'jet', 'larix', 'orca', 'raydium',
+  // Staking
+  'lido', 'rocketpool', 'stakewise', 'marinade', 'sanctum', 'socean', 'jup', 'magic eden',
+  // Bridges
+  'wormhole', 'cctp', 'stargate', 'anyswap',
+  // Yield
+  'yearn', 'convex', 'aura', 'gains', 'gmd',
+  // Other protocols
+  'opensea', 'blur', 'reservoir', 'blur protocol', 'gmx', 'perpetual protocol', 'kwenta',
+  'instadapp', 'morpho', 'euler', 'venus', 'alpaca', 'beefy', 'autofarm',
+]
 
 /**
  * Keywords for each intent type
@@ -28,6 +48,8 @@ const INTENT_KEYWORDS = {
     'sol',
     'usdc',
     'usdt',
+    'eth',
+    'btc',
     'what\'s',
     'show me',
     'health',
@@ -57,12 +79,23 @@ const INTENT_KEYWORDS = {
     'top',
     'movers',
     'market',
+    'trend',
+    'trends',
     'sector',
     'defi',
     'nft',
     'arbitrage',
     'opportunity',
     'alerts',
+    'crypto market',
+    'market sentiment',
+    'market cap',
+    'dominance',
+    'gainers',
+    'losers',
+    'overall',
+    'overall market',
+    'general market',
   ],
   comparison: [
     'compare',
@@ -81,6 +114,34 @@ const INTENT_KEYWORDS = {
     'set',
     'create alert',
   ],
+  dapp: [
+    'protocol',
+    'tvl',
+    'apy',
+    'dapp',
+    'defi',
+    'yield',
+    'pool',
+    'staking',
+    'farming',
+    'trading',
+  ],
+}
+
+/**
+ * Extract DApp protocols from query
+ */
+function extractDApps(query: string): string[] {
+  const dapps: string[] = []
+  const lowerQuery = query.toLowerCase()
+
+  for (const protocol of DAPP_PROTOCOLS) {
+    if (lowerQuery.includes(protocol)) {
+      dapps.push(protocol)
+    }
+  }
+
+  return [...new Set(dapps)] // Remove duplicates
 }
 
 /**
@@ -99,9 +160,10 @@ function extractTokens(query: string): string[] {
   // Extract potential token symbols ONLY if they appear with context
   // Look for patterns like "token SOL", "price of BTC", "SOL coin"
   const tokenContextPatterns = [
-    /(?:price|chart|buy|sell|swap|trade)\s+(?:of\s+)?([A-Z]{2,10})\b/gi,
-    /\b([A-Z]{2,10})\s+(?:token|coin|price|chart)/gi,
-    /(?:token|coin)\s+([A-Z]{2,10})\b/gi,
+    /(?:price|chart|buy|sell|swap|trade|cost|current|show)\s+(?:of\s+)?([A-Z]{2,10})\b/gi,
+    /\b([A-Z]{2,10})\s+(?:token|coin|price|chart|cost|current)/gi,
+    /(?:token|coin|price|current|cost)\s+([A-Z]{2,10})\b/gi,
+    /(?:what(?:'s|s)?|is|the|check)\s+(?:the\s+)?(?:current\s+)?(?:price\s+(?:of\s+)?)?([A-Z]{2,10})\b/gi,
   ]
 
   for (const pattern of tokenContextPatterns) {
@@ -119,19 +181,31 @@ function extractTokens(query: string): string[] {
     'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW',
     'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO', 'BOY', 'DID',
     'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'WHY', 'INTO', 'EXPLAIN',
-    'SHOW', 'TELL', 'WHAT', 'WHEN', 'WHERE', 'WHICH', 'WHILE', 'WITH'
+    'SHOW', 'TELL', 'WHAT', 'WHEN', 'WHERE', 'WHICH', 'WHILE', 'WITH',
+    'CHECK', 'WHATS', 'WHATS'
   ]
 
   // Filter out excluded words
   const filteredTokens = tokens.filter(token => !excludeWords.includes(token.toUpperCase()))
 
   // Look for token mentions in lowercase with context
-  // Patterns like "cbbtc token", "zbtc price", "bonk coin"
-  const tokenContextRegex = /\b([a-z]{2,10})(?:\s+(?:token|coin|price|chart|data))/gi
+  // Patterns like "cbbtc token", "zbtc price", "bonk coin", "eth price"
+  const tokenContextRegex = /\b([a-z]{2,10})(?:\s+(?:token|coin|price|chart|data|current|cost))/gi
   const contextMatches = query.matchAll(tokenContextRegex)
 
   for (const match of contextMatches) {
     filteredTokens.push(match[1].toUpperCase())
+  }
+
+  // Fallback: If query is very short (like "eth" or "bitcoin") and looks like a token symbol
+  // This allows simple queries like just typing "eth" or "ethereum"
+  const trimmedQuery = query.trim()
+  if (filteredTokens.length === 0 && trimmedQuery.length <= 15) {
+    // Check if it looks like a single token symbol (2-10 chars, letters only)
+    const simpleTokenMatch = trimmedQuery.match(/^[a-z]{2,10}$/i)
+    if (simpleTokenMatch) {
+      filteredTokens.push(simpleTokenMatch[0].toUpperCase())
+    }
   }
 
   return [...new Set(filteredTokens)] // Remove duplicates
@@ -190,6 +264,7 @@ export function detectIntent(query: string): DetectedIntent {
     market: 0,
     comparison: 0,
     alert: 0,
+    dapp: 0,
     general: 0,
   }
 
@@ -200,9 +275,25 @@ export function detectIntent(query: string): DetectedIntent {
   }
 
   // Boost scores based on extracted entities
-  const tokens = extractTokens(query)
+  let tokens = extractTokens(query)
   const wallets = extractWallets(query)
   const comparison = detectComparison(query)
+  const dapps = extractDApps(query)
+
+  // If this is clearly a market query, don't extract individual tokens
+  // (e.g., "what's trending", "market movers", "current market trends")
+  const isMarketQuery = lowerQuery.includes('trend') ||
+                        lowerQuery.includes('overall market') ||
+                        lowerQuery.includes('crypto market') ||
+                        lowerQuery.includes('market sentiment') ||
+                        lowerQuery.includes('gainers') ||
+                        lowerQuery.includes('losers') ||
+                        lowerQuery.includes('market cap ranking') ||
+                        lowerQuery.includes('market dominance')
+
+  if (isMarketQuery) {
+    tokens = [] // Clear tokens for pure market queries
+  }
 
   if (tokens.length > 0) {
     scores.token += 0.3
@@ -212,6 +303,9 @@ export function detectIntent(query: string): DetectedIntent {
   }
   if (comparison) {
     scores.comparison += 0.3
+  }
+  if (dapps.length > 0) {
+    scores.dapp += 0.4 // Higher boost for DApp mentions
   }
   if (lowerQuery.includes('alert')) {
     scores.alert += 0.2
@@ -255,6 +349,7 @@ export function detectIntent(query: string): DetectedIntent {
     confidence,
     tokens: tokens.length > 0 ? tokens : undefined,
     wallets: wallets.length > 0 ? wallets : undefined,
+    dapps: dapps.length > 0 ? dapps : undefined,
     comparison: comparison || undefined,
     alertType,
     rawQuery: query,
@@ -275,8 +370,8 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
       if (intent.tokens && intent.tokens.length > 0) {
         for (const token of intent.tokens) {
           fetches.push({
-            endpoint: '/api/jupiter/token',
-            params: { symbol: token },
+            endpoint: '/api/zerion/token-search',
+            params: { query: token },
           })
         }
       }
@@ -295,17 +390,28 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
 
     case 'comparison':
       if (intent.comparison) {
-        // Fetch data for both tokens using Jupiter
+        // Fetch data for both tokens using Zerion
         fetches.push(
           {
-            endpoint: '/api/jupiter/token',
-            params: { symbol: intent.comparison.from },
+            endpoint: '/api/zerion/token-search',
+            params: { query: intent.comparison.from },
           },
           {
-            endpoint: '/api/jupiter/token',
-            params: { symbol: intent.comparison.to },
+            endpoint: '/api/zerion/token-search',
+            params: { query: intent.comparison.to },
           }
         )
+      }
+      break
+
+    case 'dapp':
+      if (intent.dapps && intent.dapps.length > 0) {
+        for (const dapp of intent.dapps) {
+          fetches.push({
+            endpoint: '/api/zerion/dapp-info',
+            params: { search: dapp },
+          })
+        }
       }
       break
 
@@ -332,10 +438,10 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
 export function generateIntentContext(intent: DetectedIntent): string {
   switch (intent.type) {
     case 'token':
-      return `The user is asking about token(s): ${intent.tokens?.join(', ')}. Provide detailed token analysis including price, liquidity, health metrics, and risk assessment.`
+      return `The user is asking about token(s): ${intent.tokens?.join(', ')}. Provide detailed token analysis including price, liquidity, health metrics, multi-chain availability, and risk assessment.`
 
     case 'wallet':
-      return `The user is asking about wallet(s): ${intent.wallets?.join(', ')}. Provide portfolio overview, recent activity, and smart money insights.`
+      return `The user is asking about wallet(s): ${intent.wallets?.join(', ')}. Provide portfolio overview, recent activity, DeFi positions, and smart money insights.`
 
     case 'market':
       return 'The user is asking about market trends. Provide insights on trending tokens, sector performance, and market opportunities.'
@@ -343,11 +449,14 @@ export function generateIntentContext(intent: DetectedIntent): string {
     case 'comparison':
       return `The user wants to compare ${intent.comparison?.from} with ${intent.comparison?.to}. Provide side-by-side comparison of key metrics.`
 
+    case 'dapp':
+      return `The user is asking about DApp protocol(s): ${intent.dapps?.join(', ')}. Provide TVL (Total Value Locked), user count, supported chains, position types, and yield opportunities. Include risk factors and usage metrics.`
+
     case 'alert':
       return `The user wants to set up an alert for ${intent.alertType} changes. Help them configure appropriate thresholds.`
 
     case 'general':
     default:
-      return 'Provide helpful insights about Solana tokens and wallets based on the user query.'
+      return 'Provide helpful insights about crypto tokens, DeFi protocols, and wallets based on the user query.'
   }
 }

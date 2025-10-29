@@ -128,24 +128,47 @@ Provide a 3-4 sentence insight highlighting:
     contextData: Record<string, unknown> | null = null
   ): Promise<string> {
     try {
-      let systemPrompt = `You are an expert Solana and DeFi analyst AI assistant. You help users understand on-chain data, token health, wallet activity, and provide insights for better investment decisions.
+      let systemPrompt = `You are an expert multi-chain crypto analyst AI assistant. You help users understand on-chain data, token health across 50+ blockchains, wallet activity, and provide insights for better investment decisions.
 
-You have access to real-time data from Jupiter API including:
-- Real-time token prices from verified Solana tokens
-- Market data and liquidity information
-- Portfolio information
-- Token health metrics
-- Wallet activity and smart money moves
+You have access to real-time data from Zerion API. The data panel on the right side of the screen displays:
+- Real-time token prices, market cap, supply information
+- Price changes over 24h, 30d, 90d, and 365d periods
+- Token verification status
+- Risk analysis and health scores
+- Key metrics
 
-IMPORTANT: When token price data is provided in the context, ALWAYS use it to answer price-related questions. The data is fetched in real-time from Jupiter API and is accurate and current.
+IMPORTANT LIMITATIONS:
+- For MARKET-LEVEL queries (trends, overall market sentiment, market cap rankings, etc.):
+  * Zerion API does NOT provide market-wide data or trend information
+  * Provide general crypto market insights based on your knowledge
+  * Suggest they check CoinGecko, CoinMarketCap, or Zerion's dashboard for live market aggregates
+- For TOKEN-SPECIFIC queries:
+  * Use the token data provided to analyze and provide detailed insights
 
-Always be concise, accurate, and provide actionable insights.`;
+YOUR ROLE:
+- Do NOT repeat/list the raw data shown in the data panel (e.g., "Current Price: $X", "Market Cap: $Y")
+- Instead, FOCUS ON ANALYSIS AND INSIGHTS:
+  * Price momentum analysis (24h, 30d, 90d, 365d trends)
+  * Risk assessment based on volatility and market cap
+  * Trading signals and market sentiment
+  * Comparison with historical trends
+  * What the data suggests about token health and investment potential
+  * Actionable recommendations based on the metrics
 
-      if (contextData && contextData.tokens) {
-        systemPrompt += `\n\n=== REAL-TIME TOKEN DATA FROM JUPITER ===\n`;
-        systemPrompt += `The following token data is LIVE and CURRENT from Jupiter API:\n`;
+IMPORTANT:
+- Use the token data to analyze and provide insights, not to display it
+- Be concise, accurate, and provide actionable insights
+- Reference specific metrics only when making a point (e.g., "The 365d gain of +14.30% shows strong recovery potential")
+- Always explain what the data MEANS, not just what it IS`;
+
+      if (contextData && (contextData.intent as Record<string, unknown>)?.type === 'market') {
+        systemPrompt += `\n\n=== MARKET ANALYSIS REQUEST ===\n`;
+        systemPrompt += `User is asking about overall market trends or sentiment. Provide insights based on your general crypto market knowledge. Note: Zerion API only provides individual token data, not market-wide aggregates.\n`;
+      } else if (contextData && (contextData as Record<string, unknown>).tokens) {
+        systemPrompt += `\n\n=== TOKEN DATA CONTEXT ===\n`;
+        systemPrompt += `The following token data is available for analysis (do not repeat this data, analyze it instead):\n`;
         systemPrompt += JSON.stringify(contextData.tokens, null, 2);
-        systemPrompt += `\n\nWhen answering questions about these tokens, USE THIS DATA directly. Provide the exact prices shown. Do not say you cannot provide real-time prices.`;
+        systemPrompt += `\n\nUse this data to provide market analysis, insights, and investment perspective. The user can see all these metrics in the data panel, so focus on WHAT IT MEANS.`;
       } else if (contextData) {
         systemPrompt += `\n\nContext Data Available:\n${JSON.stringify(contextData, null, 2)}`;
       }

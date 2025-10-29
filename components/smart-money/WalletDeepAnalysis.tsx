@@ -221,19 +221,11 @@ export default function WalletDeepAnalysis({
 
   return (
     <div className="space-y-6">
-      {/* Wallet Profile & Trading Behavior */}
-      {profile && behavior && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WalletProfile profile={profile} />
-          <TradingBehavior behavior={behavior} />
-        </div>
-      )}
-
       {/* Header */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg shadow-sm border border-[#e7e7ee] p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gary-900 mb-2 flex items-center gap-2">
               <Wallet className="h-6 w-6" />
               Smart Money Wallet Analysis
             </h2>
@@ -242,7 +234,7 @@ export default function WalletDeepAnalysis({
           <button
             onClick={fetchWalletAnalysis}
             disabled={loading}
-            className="p-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-slate-200 rounded-lg transition-colors"
+            className="p-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 text-slate-200 rounded-lg transition-colors"
           >
             <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -250,23 +242,23 @@ export default function WalletDeepAnalysis({
 
         {/* Portfolio Value */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white rounded-lg p-4 border border-[#e7e7ee]">
             <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">
               Portfolio Value
             </p>
-            <p className="text-3xl font-bold text-white">
+            <p className="text-3xl font-bold text-gray-900">
               {formatValue(performance.portfolioValue)}
             </p>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white rounded-lg p-4 border border-[#e7e7ee]">
             <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">
               Total PnL
             </p>
-            <p className={`text-3xl font-bold ${isPositivePnL ? 'text-green-400' : 'text-red-400'}`}>
+            <p className={`text-3xl font-bold ${isPositivePnL ? 'text-green-600' : 'text-red-600'}`}>
               {isPositivePnL ? '+' : ''}
               {formatValue(performance.totalPnL)}
             </p>
-            <p className={`text-sm ${isPositivePnL ? 'text-green-300' : 'text-red-300'}`}>
+            <p className={`text-sm ${isPositivePnL ? 'text-green-500' : 'text-red-500'}`}>
               {formatPercentage(performance.pnlPercentage)}
             </p>
           </div>
@@ -307,6 +299,15 @@ export default function WalletDeepAnalysis({
           </div>
         </CardContent>
       </Card>
+
+      {/* Wallet Profile & Trading Behavior */}
+      {profile && behavior && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WalletProfile profile={profile} />
+          <TradingBehavior behavior={behavior} />
+        </div>
+      )}
+
 
       {/* Portfolio Composition */}
       <Card>

@@ -1,10 +1,11 @@
 /**
  * POST /api/claude/chat
- * Handle AI chat requests with optional context data
+ * Handle AI chat requests with optional context data (tokens, DApps, wallets)
+ * Supports both Zerion multi-chain data and fallback token enrichment
  */
 
 import { claudeClient } from '@/lib/claude';
-import { jupiterClient } from '@/lib/jupiter';
+import { zerionChatbot } from '@/lib/zerion-chatbot';
 // import { supabaseDB } from '@/lib/supabase'; // TODO: Uncomment when chat_history table is created
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -22,7 +23,14 @@ async function enrichContextWithTokenData(
   const enrichedContext = { ...contextData };
 
   try {
-    // Extract potential token symbols from the message
+    // If panelData already exists from client-side intent detection, use it
+    // This is preferred as it has proper intent context
+    if (enrichedContext?.panelData) {
+      console.log('Using panel data from client intent detection');
+      return enrichedContext;
+    }
+
+    // Extract potential token symbols from the message as fallback
     const messageLower = message.toLowerCase();
     const tokensToSearch: Set<string> = new Set();
 
@@ -79,23 +87,32 @@ async function enrichContextWithTokenData(
 
     console.log('Tokens to search:', Array.from(tokensToSearch));
 
-    // Fetch data for each token using Jupiter API
+    // Fetch data for each token using Zerion API as fallback
     if (tokensToSearch.size > 0) {
-      console.log('Fetching token data from Jupiter API...');
-      const allTokenData = await jupiterClient.getMultipleTokensWithPrices(
-        Array.from(tokensToSearch)
-      );
+      console.log('Fetching token data from Zerion API as fallback...');
+      try {
+        const allTokenData = [];
+        for (const token of Array.from(tokensToSearch)) {
+          const tokenData = await zerionChatbot.searchToken(token);
+          if (tokenData && tokenData.length > 0) {
+            allTokenData.push(tokenData[0]);
+          }
+        }
 
-      if (allTokenData.length > 0) {
-        enrichedContext.tokens = allTokenData;
-        console.log('Enriched context with Jupiter token data:', allTokenData);
-      } else {
-        console.log('No token data found from Jupiter');
+        if (allTokenData.length > 0) {
+          enrichedContext.tokens = allTokenData;
+          console.log('Enriched context with Zerion token data:', allTokenData);
+        } else {
+          console.log('No token data found from Zerion');
+        }
+      } catch (error) {
+        console.error('Error fetching from Zerion API:', error);
+        // Continue without Zerion data if there's an error
       }
     }
   } catch (error) {
-    console.error('Error enriching context with Jupiter data:', error);
-    // Continue without Jupiter data if there's an error
+    console.error('Error enriching context with token data:', error);
+    // Continue without token data if there's an error
   }
 
   return enrichedContext;
@@ -123,7 +140,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   context_data: contextData || null,
     // });
 
-    // Enrich context with Jupiter token data
+    // Enrich context with token/DApp data from Zerion API (or use pre-fetched panelData)
     const enrichedContext = await enrichContextWithTokenData(message, contextData || null);
 
     // Get AI response with enriched context

@@ -17,18 +17,21 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetectedIntent } from "@/lib/intent-detector";
+import DAppPanel from "./DAppPanel";
 
 interface TokenData {
   symbol?: string;
   name?: string;
   price?: number;
   priceChange24h?: number;
+  priceChange30d?: number;
+  priceChange90d?: number;
+  priceChange365d?: number;
   marketCap?: number;
-  volume24h?: number;
-  liquidity?: number;
-  holderCount?: number;
-  organicScore?: number;
+  circulatingSupply?: number;
+  totalSupply?: number;
   icon?: string;
+  verified?: boolean;
   [key: string]: unknown;
 }
 
@@ -55,6 +58,11 @@ export default function DataPanel({
       case "token":
         setPanelContent(
           <TokenPanel intent={intent} data={data} loading={loading} />
+        );
+        break;
+      case "dapp":
+        setPanelContent(
+          <DAppPanel intent={intent} data={data} loading={loading} />
         );
         break;
       default:
@@ -103,8 +111,10 @@ function TokenPanel({
 }) {
   const tokenSymbol = intent.tokens?.[0] || "Unknown";
 
-  // Extract Jupiter token data from API response
-  const tokenData = data?.data as TokenData | undefined;
+  // Extract Zerion token data from API response
+  // data.data is an array of TokenData[], so take the first result
+  const tokenDataArray = data?.data as TokenData[] | undefined;
+  const tokenData = tokenDataArray?.[0] || undefined;
 
   // Helper to format large numbers
   const formatNumber = (num: number | null | undefined) => {
@@ -187,35 +197,23 @@ function TokenPanel({
                 )}
               </div>
 
-              {/* Key Metrics */}
+              {/* Key Metrics from Zerion */}
               <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                 <MetricBadge
                   label="Market Cap"
                   value={formatNumber(tokenData.marketCap)}
                 />
                 <MetricBadge
-                  label="Volume (24h)"
-                  value={formatNumber(tokenData.volume24h)}
+                  label="Circulating Supply"
+                  value={formatCount(typeof tokenData.circulatingSupply === 'number' ? tokenData.circulatingSupply : undefined)}
                 />
-                <MetricBadge
-                  label="Liquidity"
-                  value={formatNumber(tokenData.liquidity)}
-                />
-                <MetricBadge
-                  label="Holders"
-                  value={formatCount(tokenData.holderCount)}
-                />
+                {typeof tokenData.totalSupply === 'number' && (
+                  <MetricBadge
+                    label="Total Supply"
+                    value={formatCount(tokenData.totalSupply)}
+                  />
+                )}
               </div>
-
-              {/* Organic Score */}
-              {tokenData.organicScore && (
-                <div className="pt-3 border-t">
-                  <div className="text-sm text-neutral-600 mb-2">
-                    Organic Score
-                  </div>
-                  <HealthBar score={Math.round(tokenData.organicScore)} />
-                </div>
-              )}
             </>
           ) : (
             <div className="text-center py-8 text-neutral-500">
@@ -236,66 +234,65 @@ function TokenPanel({
         <CardContent className="space-y-3">
           {/* Overall Risk Score */}
           {(() => {
-            // Calculate risk score based on multiple factors
+            // Calculate risk score based on available Zerion data
             let riskScore = 0;
             const riskFactors: Array<{ label: string; status: 'safe' | 'warning' | 'danger' }> = [];
 
-            // Organic Score (40% weight)
-            if (tokenData?.organicScore) {
-              if (tokenData.organicScore >= 70) {
-                riskScore += 40;
-                riskFactors.push({ label: "High Quality Token", status: "safe" as const });
-              } else if (tokenData.organicScore >= 40) {
+            // Market Cap Health (35% weight) - Larger market cap = more established
+            if (tokenData?.marketCap) {
+              if (tokenData.marketCap >= 1e9) { // $1B+
+                riskScore += 35;
+                riskFactors.push({ label: "Large Market Cap ($1B+)", status: "safe" as const });
+              } else if (tokenData.marketCap >= 100e6) { // $100M+
                 riskScore += 25;
-                riskFactors.push({ label: "Moderate Quality", status: "warning" as const });
+                riskFactors.push({ label: "Moderate Market Cap ($100M+)", status: "warning" as const });
               } else {
                 riskScore += 10;
-                riskFactors.push({ label: "Low Quality Token", status: "danger" as const });
+                riskFactors.push({ label: "Small Market Cap", status: "danger" as const });
               }
             }
 
-            // Liquidity (30% weight)
-            if (tokenData?.liquidity) {
-              if (tokenData.liquidity >= 1000000) {
-                riskScore += 30;
-                riskFactors.push({ label: "High Liquidity", status: "safe" as const });
-              } else if (tokenData.liquidity >= 100000) {
-                riskScore += 20;
-                riskFactors.push({ label: "Moderate Liquidity", status: "warning" as const });
+            // Verification Status (25% weight)
+            if (tokenData?.verified) {
+              riskScore += 25;
+              riskFactors.push({ label: "Verified Token", status: "safe" as const });
+            } else {
+              riskFactors.push({ label: "Unverified Status", status: "warning" as const });
+            }
+
+            // Price Stability - 90d and 365d trends (25% weight)
+            let priceStabilityScore = 0;
+            const change90d = tokenData?.priceChange90d;
+            if (typeof change90d === 'number') {
+              const absChange = Math.abs(change90d);
+              if (absChange < 50) {
+                priceStabilityScore += 15;
+                riskFactors.push({ label: "Stable 90d trend", status: "safe" as const });
+              } else if (absChange < 100) {
+                priceStabilityScore += 10;
+                riskFactors.push({ label: "Moderate 90d volatility", status: "warning" as const });
               } else {
-                riskScore += 5;
-                riskFactors.push({ label: "Low Liquidity Risk", status: "danger" as const });
+                priceStabilityScore += 3;
+                riskFactors.push({ label: "High 90d volatility", status: "danger" as const });
               }
             }
 
-            // Holder Distribution (20% weight)
-            if (tokenData?.holderCount) {
-              if (tokenData.holderCount >= 100000) {
-                riskScore += 20;
-                riskFactors.push({ label: "Wide Distribution", status: "safe" as const });
-              } else if (tokenData.holderCount >= 10000) {
-                riskScore += 12;
-                riskFactors.push({ label: "Fair Distribution", status: "warning" as const });
-              } else {
-                riskScore += 5;
-                riskFactors.push({ label: "Concentrated Holders", status: "danger" as const });
-              }
-            }
-
-            // Price Volatility (10% weight)
+            // Short-term volatility (24h change) (15% weight)
             if (tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined) {
               const absChange = Math.abs(tokenData.priceChange24h);
               if (absChange < 10) {
+                riskScore += 15;
+                riskFactors.push({ label: "Stable Price (24h)", status: "safe" as const });
+              } else if (absChange < 20) {
                 riskScore += 10;
-                riskFactors.push({ label: "Stable Price", status: "safe" as const });
-              } else if (absChange < 30) {
-                riskScore += 6;
-                riskFactors.push({ label: "Moderate Volatility", status: "warning" as const });
+                riskFactors.push({ label: "Moderate 24h volatility", status: "warning" as const });
               } else {
-                riskScore += 2;
-                riskFactors.push({ label: "High Volatility", status: "danger" as const });
+                riskScore += 3;
+                riskFactors.push({ label: "High 24h volatility", status: "danger" as const });
               }
             }
+
+            riskScore += priceStabilityScore;
 
             const riskLevel =
               riskScore >= 70 ? "Low Risk" : riskScore >= 40 ? "Medium Risk" : "High Risk";
@@ -361,51 +358,69 @@ function TokenPanel({
         </CardHeader>
         <CardContent>
           {(() => {
-            // Calculate recommendation based on multiple signals
+            // Calculate recommendation based on available Zerion data
             let score = 0;
             const signals: string[] = [];
 
-            // Organic Score signal
-            if (tokenData?.organicScore) {
-              if (tokenData.organicScore >= 70) {
-                score += 3;
-                signals.push("High quality token");
-              } else if (tokenData.organicScore < 40) {
-                score -= 2;
-                signals.push("Low quality concerns");
-              }
+            // Verification signal (highest priority)
+            if (tokenData?.verified === true) {
+              score += 3;
+              signals.push("Token is verified by Zerion");
+            } else {
+              score -= 1;
+              signals.push("Token unverified");
             }
 
-            // Liquidity signal
-            if (tokenData?.liquidity) {
-              if (tokenData.liquidity >= 1000000) {
+            // Market Cap signal (larger = more established)
+            if (tokenData?.marketCap) {
+              if (tokenData.marketCap >= 1e9) {
                 score += 2;
-                signals.push("Easy to trade");
-              } else if (tokenData.liquidity < 100000) {
-                score -= 2;
-                signals.push("Low liquidity risk");
+                signals.push("Large market cap - established token");
+              } else if (tokenData.marketCap >= 100e6) {
+                score += 1;
+                signals.push("Moderate market cap - mid-cap token");
+              } else {
+                score -= 1;
+                signals.push("Low market cap - risky token");
               }
             }
 
-            // Price momentum signal
-            if (tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined) {
+            // Long-term trend (365d) signal
+            if (typeof tokenData?.priceChange365d === 'number') {
+              if (tokenData.priceChange365d > 50) {
+                score += 2;
+                signals.push("Strong 1-year uptrend");
+              } else if (tokenData.priceChange365d > 0) {
+                score += 1;
+                signals.push("Positive yearly performance");
+              } else if (tokenData.priceChange365d < -30) {
+                score -= 2;
+                signals.push("Negative yearly trend");
+              }
+            }
+
+            // Short-term momentum (24h change) signal
+            if (typeof tokenData?.priceChange24h === 'number') {
               if (tokenData.priceChange24h > 10) {
                 score += 1;
-                signals.push("Strong upward momentum");
+                signals.push("Strong upward momentum (24h)");
               } else if (tokenData.priceChange24h < -10) {
                 score -= 1;
-                signals.push("Declining price");
+                signals.push("Declining price (24h)");
+              } else {
+                signals.push("Stable price movement (24h)");
               }
             }
 
-            // Holder distribution signal
-            if (tokenData?.holderCount) {
-              if (tokenData.holderCount >= 100000) {
+            // Medium-term stability (90d change) signal
+            if (typeof tokenData?.priceChange90d === 'number') {
+              const change90d = Math.abs(tokenData.priceChange90d);
+              if (change90d < 50) {
                 score += 1;
-                signals.push("Wide holder base");
-              } else if (tokenData.holderCount < 10000) {
+                signals.push("Stable 90-day trend");
+              } else if (change90d > 100) {
                 score -= 1;
-                signals.push("Concentrated ownership");
+                signals.push("Volatile 90-day trend");
               }
             }
 
@@ -465,26 +480,18 @@ function TokenPanel({
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Price Change */}
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-neutral-600">Price Change</span>
-              <span
-                className={`text-sm font-semibold ${
-                  tokenData.priceChange24h >= 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {tokenData.priceChange24h >= 0 ? "+" : ""}
-                {tokenData.priceChange24h.toFixed(2)}%
-              </span>
-            </div>
-
-            {/* Volume */}
-            {tokenData.volume24h && (
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-sm text-neutral-600">24h Volume</span>
-                <span className="text-sm font-semibold">
-                  {formatNumber(tokenData.volume24h)}
+            {tokenData.priceChange24h !== null && tokenData.priceChange24h !== undefined && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-neutral-600">Price Change (24h)</span>
+                <span
+                  className={`text-sm font-semibold ${
+                    tokenData.priceChange24h >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {tokenData.priceChange24h >= 0 ? "+" : ""}
+                  {tokenData.priceChange24h.toFixed(2)}%
                 </span>
               </div>
             )}
@@ -530,31 +537,6 @@ function MetricBadge({ label, value }: { label: string; value: string }) {
     <div className="space-y-1">
       <div className="text-xs text-neutral-500">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function HealthBar({ score }: { score: number }) {
-  const percentage = Math.min(score, 100);
-  const color =
-    percentage >= 70
-      ? "bg-green-500"
-      : percentage >= 40
-      ? "bg-yellow-500"
-      : "bg-red-500";
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-neutral-600">Health Score</span>
-        <span className="text-sm font-semibold">{score}/100</span>
-      </div>
-      <div className="w-full bg-neutral-200 rounded-full h-2">
-        <div
-          className={`${color} h-2 rounded-full`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
     </div>
   );
 }
