@@ -416,7 +416,11 @@ export function getSuggestedDataFetches(intent: DetectedIntent): {
       break
 
     case 'market':
-      // Market data would require a dedicated endpoint
+      // Fetch trending data from CoinGecko
+      fetches.push({
+        endpoint: '/api/market/trending',
+        params: {},
+      })
       break
 
     case 'alert':

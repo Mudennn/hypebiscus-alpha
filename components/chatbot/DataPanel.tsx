@@ -1,20 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
-import {
-  TrendingUp,
-  TrendingDown,
-  Eye,
-  Bell,
-  Share2,
-} from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, Bell, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetectedIntent } from "@/lib/intent-detector";
 import DAppPanel from "./DAppPanel";
@@ -63,6 +52,11 @@ export default function DataPanel({
       case "dapp":
         setPanelContent(
           <DAppPanel intent={intent} data={data} loading={loading} />
+        );
+        break;
+      case "market":
+        setPanelContent(
+          <MarketPanel intent={intent} data={data} loading={loading} />
         );
         break;
       default:
@@ -130,9 +124,9 @@ function TokenPanel({
     if (price < 0.01) return `$${price.toFixed(6)}`;
     if (price < 1) return `$${price.toFixed(4)}`;
     // Add thousands separators for larger prices
-    return `$${price.toLocaleString('en-US', {
+    return `$${price.toLocaleString("en-US", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     })}`;
   };
 
@@ -151,7 +145,7 @@ function TokenPanel({
       <Card>
         <div className="flex items-center justify-start px-5 gap-2">
           <Image
-            src={tokenData?.icon || '/placeholder-token.png'}
+            src={tokenData?.icon || "/placeholder-token.png"}
             alt={tokenSymbol}
             width={40}
             height={40}
@@ -161,9 +155,7 @@ function TokenPanel({
             <h2 className="text-lg font-bold">
               {tokenData?.symbol || tokenSymbol}
             </h2>
-            <span>
-              {tokenData?.name}
-            </span>
+            <span>{tokenData?.name}</span>
           </div>
         </div>
         <CardContent className="space-y-4">
@@ -205,9 +197,13 @@ function TokenPanel({
                 />
                 <MetricBadge
                   label="Circulating Supply"
-                  value={formatCount(typeof tokenData.circulatingSupply === 'number' ? tokenData.circulatingSupply : undefined)}
+                  value={formatCount(
+                    typeof tokenData.circulatingSupply === "number"
+                      ? tokenData.circulatingSupply
+                      : undefined
+                  )}
                 />
-                {typeof tokenData.totalSupply === 'number' && (
+                {typeof tokenData.totalSupply === "number" && (
                   <MetricBadge
                     label="Total Supply"
                     value={formatCount(tokenData.totalSupply)}
@@ -236,66 +232,111 @@ function TokenPanel({
           {(() => {
             // Calculate risk score based on available Zerion data
             let riskScore = 0;
-            const riskFactors: Array<{ label: string; status: 'safe' | 'warning' | 'danger' }> = [];
+            const riskFactors: Array<{
+              label: string;
+              status: "safe" | "warning" | "danger";
+            }> = [];
 
             // Market Cap Health (35% weight) - Larger market cap = more established
             if (tokenData?.marketCap) {
-              if (tokenData.marketCap >= 1e9) { // $1B+
+              if (tokenData.marketCap >= 1e9) {
+                // $1B+
                 riskScore += 35;
-                riskFactors.push({ label: "Large Market Cap ($1B+)", status: "safe" as const });
-              } else if (tokenData.marketCap >= 100e6) { // $100M+
+                riskFactors.push({
+                  label: "Large Market Cap ($1B+)",
+                  status: "safe" as const,
+                });
+              } else if (tokenData.marketCap >= 100e6) {
+                // $100M+
                 riskScore += 25;
-                riskFactors.push({ label: "Moderate Market Cap ($100M+)", status: "warning" as const });
+                riskFactors.push({
+                  label: "Moderate Market Cap ($100M+)",
+                  status: "warning" as const,
+                });
               } else {
                 riskScore += 10;
-                riskFactors.push({ label: "Small Market Cap", status: "danger" as const });
+                riskFactors.push({
+                  label: "Small Market Cap",
+                  status: "danger" as const,
+                });
               }
             }
 
             // Verification Status (25% weight)
             if (tokenData?.verified) {
               riskScore += 25;
-              riskFactors.push({ label: "Verified Token", status: "safe" as const });
+              riskFactors.push({
+                label: "Verified Token",
+                status: "safe" as const,
+              });
             } else {
-              riskFactors.push({ label: "Unverified Status", status: "warning" as const });
+              riskFactors.push({
+                label: "Unverified Status",
+                status: "warning" as const,
+              });
             }
 
             // Price Stability - 90d and 365d trends (25% weight)
             let priceStabilityScore = 0;
             const change90d = tokenData?.priceChange90d;
-            if (typeof change90d === 'number') {
+            if (typeof change90d === "number") {
               const absChange = Math.abs(change90d);
               if (absChange < 50) {
                 priceStabilityScore += 15;
-                riskFactors.push({ label: "Stable 90d trend", status: "safe" as const });
+                riskFactors.push({
+                  label: "Stable 90d trend",
+                  status: "safe" as const,
+                });
               } else if (absChange < 100) {
                 priceStabilityScore += 10;
-                riskFactors.push({ label: "Moderate 90d volatility", status: "warning" as const });
+                riskFactors.push({
+                  label: "Moderate 90d volatility",
+                  status: "warning" as const,
+                });
               } else {
                 priceStabilityScore += 3;
-                riskFactors.push({ label: "High 90d volatility", status: "danger" as const });
+                riskFactors.push({
+                  label: "High 90d volatility",
+                  status: "danger" as const,
+                });
               }
             }
 
             // Short-term volatility (24h change) (15% weight)
-            if (tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined) {
+            if (
+              tokenData?.priceChange24h !== null &&
+              tokenData?.priceChange24h !== undefined
+            ) {
               const absChange = Math.abs(tokenData.priceChange24h);
               if (absChange < 10) {
                 riskScore += 15;
-                riskFactors.push({ label: "Stable Price (24h)", status: "safe" as const });
+                riskFactors.push({
+                  label: "Stable Price (24h)",
+                  status: "safe" as const,
+                });
               } else if (absChange < 20) {
                 riskScore += 10;
-                riskFactors.push({ label: "Moderate 24h volatility", status: "warning" as const });
+                riskFactors.push({
+                  label: "Moderate 24h volatility",
+                  status: "warning" as const,
+                });
               } else {
                 riskScore += 3;
-                riskFactors.push({ label: "High 24h volatility", status: "danger" as const });
+                riskFactors.push({
+                  label: "High 24h volatility",
+                  status: "danger" as const,
+                });
               }
             }
 
             riskScore += priceStabilityScore;
 
             const riskLevel =
-              riskScore >= 70 ? "Low Risk" : riskScore >= 40 ? "Medium Risk" : "High Risk";
+              riskScore >= 70
+                ? "Low Risk"
+                : riskScore >= 40
+                ? "Medium Risk"
+                : "High Risk";
             const riskColor =
               riskScore >= 70
                 ? "text-green-600"
@@ -386,7 +427,7 @@ function TokenPanel({
             }
 
             // Long-term trend (365d) signal
-            if (typeof tokenData?.priceChange365d === 'number') {
+            if (typeof tokenData?.priceChange365d === "number") {
               if (tokenData.priceChange365d > 50) {
                 score += 2;
                 signals.push("Strong 1-year uptrend");
@@ -400,7 +441,7 @@ function TokenPanel({
             }
 
             // Short-term momentum (24h change) signal
-            if (typeof tokenData?.priceChange24h === 'number') {
+            if (typeof tokenData?.priceChange24h === "number") {
               if (tokenData.priceChange24h > 10) {
                 score += 1;
                 signals.push("Strong upward momentum (24h)");
@@ -413,7 +454,7 @@ function TokenPanel({
             }
 
             // Medium-term stability (90d change) signal
-            if (typeof tokenData?.priceChange90d === 'number') {
+            if (typeof tokenData?.priceChange90d === "number") {
               const change90d = Math.abs(tokenData.priceChange90d);
               if (change90d < 50) {
                 score += 1;
@@ -426,12 +467,28 @@ function TokenPanel({
 
             const recommendation =
               score >= 4
-                ? { action: "BUY", color: "green", bg: "bg-green-50 border-green-200" }
+                ? {
+                    action: "BUY",
+                    color: "green",
+                    bg: "bg-green-50 border-green-200",
+                  }
                 : score >= 1
-                ? { action: "HOLD", color: "blue", bg: "bg-blue-50 border-blue-200" }
+                ? {
+                    action: "HOLD",
+                    color: "blue",
+                    bg: "bg-blue-50 border-blue-200",
+                  }
                 : score >= -2
-                ? { action: "WAIT", color: "yellow", bg: "bg-yellow-50 border-yellow-200" }
-                : { action: "AVOID", color: "red", bg: "bg-red-50 border-red-200" };
+                ? {
+                    action: "WAIT",
+                    color: "yellow",
+                    bg: "bg-yellow-50 border-yellow-200",
+                  }
+                : {
+                    action: "AVOID",
+                    color: "red",
+                    bg: "bg-red-50 border-red-200",
+                  };
 
             return (
               <div className={`p-4 rounded-lg border ${recommendation.bg}`}>
@@ -473,41 +530,45 @@ function TokenPanel({
       </Card>
 
       {/* Trading Activity (24h) */}
-      {tokenData?.priceChange24h !== null && tokenData?.priceChange24h !== undefined && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">24h Trading Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Price Change */}
-            {tokenData.priceChange24h !== null && tokenData.priceChange24h !== undefined && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600">Price Change (24h)</span>
-                <span
-                  className={`text-sm font-semibold ${
-                    tokenData.priceChange24h >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {tokenData.priceChange24h >= 0 ? "+" : ""}
-                  {tokenData.priceChange24h.toFixed(2)}%
-                </span>
-              </div>
-            )}
+      {tokenData?.priceChange24h !== null &&
+        tokenData?.priceChange24h !== undefined && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">24h Trading Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Price Change */}
+              {tokenData.priceChange24h !== null &&
+                tokenData.priceChange24h !== undefined && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-neutral-600">
+                      Price Change (24h)
+                    </span>
+                    <span
+                      className={`text-sm font-semibold ${
+                        tokenData.priceChange24h >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {tokenData.priceChange24h >= 0 ? "+" : ""}
+                      {tokenData.priceChange24h.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
 
-            {/* Market Cap */}
-            {tokenData.marketCap && (
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-sm text-neutral-600">Market Cap</span>
-                <span className="text-sm font-semibold">
-                  {formatNumber(tokenData.marketCap)}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              {/* Market Cap */}
+              {tokenData.marketCap && (
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-sm text-neutral-600">Market Cap</span>
+                  <span className="text-sm font-semibold">
+                    {formatNumber(tokenData.marketCap)}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Action Buttons */}
       <div className="flex gap-2">
@@ -565,3 +626,223 @@ function RiskFactor({
   );
 }
 
+/**
+ * Market trends data panel
+ */
+function MarketPanel({
+  data,
+  loading,
+}: {
+  intent: DetectedIntent;
+  data?: Record<string, unknown>;
+  loading?: boolean;
+}) {
+  const trendingTokens =
+    (data?.trending as Array<{
+      rank: number;
+      name: string;
+      symbol: string;
+      price?: string;
+      marketCapRank?: number | null;
+      icon?: string;
+    }>) || [];
+
+  const marketData = data?.marketData as
+    | {
+        activeCryptos?: number;
+        totalMarketCap?: number;
+        total24hVolume?: number;
+        marketCapChange24h?: number;
+      }
+    | undefined;
+
+  // Helper to format large numbers
+  const formatNumber = (num: number | null | undefined) => {
+    if (!num) return "N/A";
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  // Helper to format token prices intelligently
+  const formatPrice = (price: string | undefined) => {
+    if (!price) return "N/A";
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return "N/A";
+
+    // For very small prices (less than 0.01), show more decimals
+    if (numPrice < 0.01) {
+      return `$${numPrice.toFixed(8)}`;
+    }
+    // For small prices (0.01 - 1), show 4 decimals
+    if (numPrice < 1) {
+      return `$${numPrice.toFixed(4)}`;
+    }
+    // For prices >= 1, show 2 decimals
+    return `$${numPrice.toFixed(2)}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Global Market Metrics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Global Market Metrics</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-4 bg-neutral-200 rounded animate-pulse"
+                />
+              ))}
+            </div>
+          ) : marketData ? (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-neutral-600">
+                  Active Cryptocurrencies
+                </span>
+                <span className="text-sm font-semibold">
+                  {marketData.activeCryptos?.toLocaleString() || "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-sm text-neutral-600">
+                  Total Market Cap
+                </span>
+                <span className="text-sm font-semibold">
+                  {formatNumber(marketData.totalMarketCap)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-sm text-neutral-600">24h Volume</span>
+                <span className="text-sm font-semibold">
+                  {formatNumber(marketData.total24hVolume)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-sm text-neutral-600">
+                  Market Cap Change (24h)
+                </span>
+                <span
+                  className={`text-sm font-semibold ${
+                    typeof marketData.marketCapChange24h === "number" &&
+                    marketData.marketCapChange24h >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {typeof marketData.marketCapChange24h === "number"
+                    ? `${
+                        marketData.marketCapChange24h >= 0 ? "+" : ""
+                      }${marketData.marketCapChange24h.toFixed(2)}%`
+                    : "N/A"}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4 text-neutral-500">
+              <p className="text-sm">No market data available</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Trending Tokens */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Trending Now</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-4 bg-neutral-200 rounded animate-pulse"
+                />
+              ))}
+            </div>
+          ) : trendingTokens.length > 0 ? (
+            <div className="space-y-2">
+              {trendingTokens.slice(0, 10).map((token) => (
+                <div
+                  key={`${token.rank}`}
+                  className="flex items-center justify-between p-2 rounded hover:bg-neutral-50"
+                >
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-xs font-bold text-neutral-500 w-5">
+                      #{token.rank}
+                    </span>
+                    {token.icon && (
+                      <Image
+                        src={token.icon}
+                        alt={token.symbol}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                    )}
+                    <div>
+                      <div className="text-sm font-semibold">{token.name}</div>
+                      <div className="text-xs text-neutral-500">
+                        {token.symbol}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold">
+                      {formatPrice(token.price)}
+                    </div>
+                    {typeof token.marketCapRank === "number" && (
+                      <div className="text-xs text-neutral-500">
+                        MCap Rank: #{token.marketCapRank}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-neutral-500">
+              <p className="text-sm">No trending data available</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Info Card */}
+      <Card className="border-dashed">
+        <CardContent>
+          <div className="flex items-center justify-center">
+            <Image
+              src="/image.avif"
+              alt="CoinGecko"
+              className="object-contain w-full h-[60px]"
+              height={40}
+              width={120}
+              unoptimized
+            />
+          </div>
+          <p className="text-xs text-neutral-500 text-center">
+            Market data sourced from{" "}
+            <a
+              href="https://www.coingecko.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              CoinGecko
+            </a>
+            . Trends update every 15 minutes.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

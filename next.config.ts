@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
         hostname: 'cdn.zerion.io',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'coin-images.coingecko.com',
+        pathname: '/**',
+      },
     ],
   },
 };

@@ -195,3 +195,166 @@ export function getUniqueCategories(categories: string[]): string[] {
   const normalized = categories.map(normalizeCategory);
   return [...new Set(normalized)];
 }
+
+/**
+ * Market trending data interfaces
+ */
+interface TrendingToken {
+  item: {
+    id: string;
+    name: string;
+    symbol: string;
+    market_cap_rank?: number | null;
+    small?: string; // 64x64px - optimal for display
+    data?: {
+      price?: string;
+    };
+  };
+}
+
+interface GlobalMarketData {
+  data?: {
+    active_cryptocurrencies?: number;
+    total_market_cap?: Record<string, number>;
+    total_volume?: Record<string, number>;
+    btc_dominance?: number;
+    eth_dominance?: number;
+    market_cap_percentage?: Record<string, number>;
+    market_cap_change_percentage_24h_usd?: number;
+  };
+}
+
+interface MarketMetrics {
+  activeCryptos?: number;
+  totalMarketCap?: number;
+  total24hVolume?: number;
+  marketCapChange24h?: number;
+}
+
+interface TrendingResponse {
+  coins?: TrendingToken[];
+  exchanges?: unknown[];
+  nfts?: unknown[];
+}
+
+/**
+ * Fetch trending cryptocurrencies from CoinGecko
+ * Returns top trending tokens from the past 24 hours
+ */
+export async function getTrendingTokens(): Promise<TrendingToken[]> {
+  try {
+    const url = 'https://api.coingecko.com/api/v3/search/trending';
+
+    console.log('[Market Trends] Fetching trending tokens from CoinGecko...');
+
+    const headers: HeadersInit = {
+      'Accept': 'application/json',
+    };
+
+    // Add CoinGecko API key if available
+    if (process.env.NEXT_COINGECKO_API_KEY) {
+      headers['x-cg-demo-api-key'] = process.env.NEXT_COINGECKO_API_KEY;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`[Market Trends] Failed to fetch trending tokens: ${response.status}`);
+      return [];
+    }
+
+    const data: TrendingResponse = await response.json();
+    const trendingCoins = data.coins || [];
+
+    console.log(`[Market Trends] Found ${trendingCoins.length} trending tokens`);
+
+    // Extract only the fields we need to reduce payload
+    // Use only 'small' image (64x64px) - optimal balance between quality and bandwidth
+    const optimizedCoins = trendingCoins.map(coin => ({
+      item: {
+        id: coin.item.id,
+        name: coin.item.name,
+        symbol: coin.item.symbol,
+        market_cap_rank: coin.item.market_cap_rank,
+        data: coin.item.data ? {
+          price: coin.item.data.price,
+        } : undefined,
+        small: coin.item.small,
+      },
+    })) as TrendingToken[];
+
+    return optimizedCoins;
+  } catch (error) {
+    console.error('[Market Trends] Error fetching trending tokens:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch global cryptocurrency market data
+ */
+export async function getGlobalMarketData(): Promise<MarketMetrics | null> {
+  try {
+    const url = 'https://api.coingecko.com/api/v3/global';
+
+    console.log('[Market Trends] Fetching global market data from CoinGecko...');
+
+    const headers: HeadersInit = {
+      'Accept': 'application/json',
+    };
+
+    // Add CoinGecko API key if available
+    if (process.env.NEXT_COINGECKO_API_KEY) {
+      headers['x-cg-demo-api-key'] = process.env.NEXT_COINGECKO_API_KEY;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`[Market Trends] Failed to fetch global market data: ${response.status}`);
+      return null;
+    }
+
+    const data: GlobalMarketData = await response.json();
+
+    console.log('[Market Trends] Global market data fetched successfully');
+
+    // Extract and format market metrics
+    const marketData = data.data;
+    if (!marketData) return null;
+
+    return {
+      activeCryptos: marketData.active_cryptocurrencies,
+      totalMarketCap: marketData.total_market_cap?.usd,
+      total24hVolume: marketData.total_volume?.usd,
+      marketCapChange24h: marketData.market_cap_change_percentage_24h_usd,
+    };
+  } catch (error) {
+    console.error('[Market Trends] Error fetching global market data:', error);
+    return null;
+  }
+}
+
+/**
+ * Format trending tokens for display
+ */
+export function formatTrendingTokens(tokens: TrendingToken[]): string {
+  if (tokens.length === 0) {
+    return 'No trending tokens found.';
+  }
+
+  const formatted = tokens.slice(0, 10).map((token, index) => {
+    const item = token.item;
+    const price = item.data?.price ? `$${item.data.price}` : 'N/A';
+
+    return `${index + 1}. ${item.name} (${item.symbol.toUpperCase()}) - Price: ${price}`;
+  }).join('\n');
+
+  return formatted;
+}

@@ -130,20 +130,17 @@ Provide a 3-4 sentence insight highlighting:
     try {
       let systemPrompt = `You are an expert multi-chain crypto analyst AI assistant. You help users understand on-chain data, token health across 50+ blockchains, wallet activity, and provide insights for better investment decisions.
 
-You have access to real-time data from Zerion API. The data panel on the right side of the screen displays:
-- Real-time token prices, market cap, supply information
-- Price changes over 24h, 30d, 90d, and 365d periods
-- Token verification status
-- Risk analysis and health scores
-- Key metrics
+You have access to real-time data from multiple sources:
+- **Zerion API**: Real-time token prices, market cap, supply information across 50+ blockchains
+- **CoinGecko API**: Trending tokens and global market metrics (market cap, volume, market sentiment)
 
-IMPORTANT LIMITATIONS:
-- For MARKET-LEVEL queries (trends, overall market sentiment, market cap rankings, etc.):
-  * Zerion API does NOT provide market-wide data or trend information
-  * Provide general crypto market insights based on your knowledge
-  * Suggest they check CoinGecko, CoinMarketCap, or Zerion's dashboard for live market aggregates
-- For TOKEN-SPECIFIC queries:
-  * Use the token data provided to analyze and provide detailed insights
+The data panel on the right side of the screen displays:
+- For TOKENS: Price, market cap, supply, price changes (24h, 30d, 90d, 365d), verification status, risk analysis
+- For MARKETS: Global market metrics, trending tokens, market sentiment indicators
+
+YOUR DATA SOURCES:
+- For TOKEN-SPECIFIC queries: Use Zerion token data (on-chain, multi-chain, detailed metrics)
+- For MARKET-LEVEL queries: Use CoinGecko trending data (real-time trending tokens, global metrics)
 
 YOUR ROLE:
 - Do NOT repeat/list the raw data shown in the data panel (e.g., "Current Price: $X", "Market Cap: $Y")
@@ -163,7 +160,13 @@ IMPORTANT:
 
       if (contextData && (contextData.intent as Record<string, unknown>)?.type === 'market') {
         systemPrompt += `\n\n=== MARKET ANALYSIS REQUEST ===\n`;
-        systemPrompt += `User is asking about overall market trends or sentiment. Provide insights based on your general crypto market knowledge. Note: Zerion API only provides individual token data, not market-wide aggregates.\n`;
+        systemPrompt += `User is asking about overall market trends or sentiment. Real-time trending data is displayed in the right panel. Focus on:\n`;
+        systemPrompt += `- What sectors/token types are gaining traction (analyze trending tokens shown)\n`;
+        systemPrompt += `- Market momentum and investor sentiment based on trends\n`;
+        systemPrompt += `- Key opportunities and risks in current market conditions\n`;
+        systemPrompt += `- Why specific tokens are trending (fundamental or sentiment-driven)\n`;
+        systemPrompt += `- Strategic recommendations for different risk appetites\n`;
+        systemPrompt += `\nDo NOT repeat the data - analyze and explain what it MEANS for investors right now.\n`;
       } else if (contextData && (contextData as Record<string, unknown>).tokens) {
         systemPrompt += `\n\n=== TOKEN DATA CONTEXT ===\n`;
         systemPrompt += `The following token data is available for analysis (do not repeat this data, analyze it instead):\n`;

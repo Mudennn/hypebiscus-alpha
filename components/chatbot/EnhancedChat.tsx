@@ -51,7 +51,7 @@ export default function EnhancedChat() {
    */
   const fetchPanelData = async (intent: DetectedIntent): Promise<Record<string, unknown> | undefined> => {
     // Don't fetch if it's a general query
-    if (intent.type === 'general' || (!intent.tokens && !intent.wallets)) {
+    if (intent.type === 'general') {
       return undefined
     }
 
@@ -109,7 +109,7 @@ export default function EnhancedChat() {
     try {
       // Fetch panel data FIRST and wait for it to complete
       let fetchedPanelData: Record<string, unknown> | undefined = undefined
-      if (savedIntent && savedIntent.type !== 'general' && (savedIntent.tokens || savedIntent.wallets)) {
+      if (savedIntent && savedIntent.type !== 'general') {
         fetchedPanelData = await fetchPanelData(savedIntent)
         setPanelData(fetchedPanelData) // Update state with fetched data
       }
