@@ -26,10 +26,6 @@ Think of it as **"Twitter Analytics for Crypto Wallets"** — instead of followi
 - **Tailwind CSS** + Shadcn UI
 - **TypeScript** for type safety
 
-### Backend
-- **Node.js** API routes on Vercel
-- **Edge Functions** for real-time processing
-
 ### Data & APIs
 - **Zerion API** - Multi-chain wallet and token data (50+ blockchains)
 - **CoinGecko API** - Token metadata and categorization
