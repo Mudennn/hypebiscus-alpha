@@ -156,6 +156,22 @@ export default function WalletDeepAnalysis({
       console.log(JSON.stringify(data, null, 2));
       console.log('=== Analysis Data (JSON) ===');
       console.log(JSON.stringify(data.data, null, 2));
+      // console.log('=== PnL Values ===');
+      // console.log('totalPnL:', data.data?.performance?.totalPnL);
+      // console.log('realizedPnL:', data.data?.performance?.realizedPnL);
+      // console.log('unrealizedPnL:', data.data?.performance?.unrealizedPnL);
+      // console.log('portfolioValue:', data.data?.performance?.portfolioValue);
+      // console.log('pnlPercentage:', data.data?.performance?.pnlPercentage);
+
+      // // Check if the values are unreasonably large (indicates bad data)
+      // const totalPnL = data.data?.performance?.totalPnL;
+      // const portfolioValue = data.data?.performance?.portfolioValue;
+
+      // if (Math.abs(totalPnL) > portfolioValue * 1000) {
+      //   console.warn('⚠️ PnL values seem incorrect - much larger than portfolio value');
+      //   console.warn('This is likely bad data from Zerion API');
+      // }
+
       setAnalysis(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -167,13 +183,21 @@ export default function WalletDeepAnalysis({
 
   const formatValue = (value: number): string => {
     const absValue = Math.abs(value);
+    const sign = value >= 0 ? '$' : '-$';
+
+    if (absValue >= 1_000_000_000_000) {
+      return `${sign}${(absValue / 1_000_000_000_000).toFixed(2)}T`;
+    }
+    if (absValue >= 1_000_000_000) {
+      return `${sign}${(absValue / 1_000_000_000).toFixed(2)}B`;
+    }
     if (absValue >= 1_000_000) {
-      return `${value >= 0 ? '$' : '-$'}${(absValue / 1_000_000).toFixed(2)}M`;
+      return `${sign}${(absValue / 1_000_000).toFixed(2)}M`;
     }
     if (absValue >= 1_000) {
-      return `${value >= 0 ? '$' : '-$'}${(absValue / 1_000).toFixed(2)}K`;
+      return `${sign}${(absValue / 1_000).toFixed(2)}K`;
     }
-    return `${value >= 0 ? '$' : '-$'}${absValue.toFixed(0)}`;
+    return `${sign}${absValue.toFixed(2)}`;
   };
 
   const formatPercentage = (value: number): string => {

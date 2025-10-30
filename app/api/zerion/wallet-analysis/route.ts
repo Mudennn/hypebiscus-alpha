@@ -371,6 +371,15 @@ async function calculateWalletMetrics(data: WalletData) {
   const netInvested = pnlData.net_invested || 1; // Avoid division by zero
   const totalFees = pnlData.total_fee || 0;
 
+  // // Log PnL data for debugging
+  // console.log('[Wallet Analysis] Raw PnL data from Zerion:');
+  // console.log('  realized_gain:', pnlData.realized_gain);
+  // console.log('  unrealized_gain:', pnlData.unrealized_gain);
+  // console.log('  net_invested:', pnlData.net_invested);
+  // console.log('  total_fee:', pnlData.total_fee);
+  // console.log('[Wallet Analysis] Calculated values:');
+  // console.log('  totalPnL:', totalPnL);
+
   // Calculate PnL percentage
   const pnlPercentage = (totalPnL / netInvested) * 100;
 
